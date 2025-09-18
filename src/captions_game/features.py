@@ -59,5 +59,5 @@ class _BatchIterator:
 
             images_vectors_receiver[:, i, :] = images_vectors_sender[permutation, i, :]
             y[i] = permutation.argmin()
-        return images_vectors_sender, y, images_vectors_receiver
+        return images_vectors_sender.permute(1, 0, 2).contiguous(), y, images_vectors_receiver.permute(1, 0, 2).contiguous()
 

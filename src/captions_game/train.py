@@ -9,10 +9,12 @@ import os
 import torch.nn.functional as F
 
 import egg.core as core
-from egg.zoo.signal_game.archs import InformedSender, Receiver
+# from egg.zoo.signal_game.archs import InformedSender, Receiver
 # from egg.zoo.signal_game.features import ImageNetFeat, ImagenetLoader
 from src.captions_game.features import CaptionsLoader
+from src.captions_game.archs import InformedSender, Receiver
 from datasets import load_from_disk, Dataset
+from src.captions_game.reinforce_wrappers import RnnSenderReinforce, RnnReceiverReinforce, SenderReceiverRnnReinforce
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -90,9 +92,9 @@ def get_game(opt):
         reinforce=(opts.mode == "rf"),
     )
     if opts.mode == "rf":
-        sender = core.ReinforceWrapper(sender)
-        receiver = core.ReinforceWrapper(receiver)
-        game = core.SymbolGameReinforce(
+        sender = RnnSenderReinforce(sender, opt.vocab_size, opt.embedding_size, hidden_size=opt.hidden_size, max_len=opts.max_len)
+        receiver = RnnReceiverReinforce(receiver, opt.vocab_size, opt.embedding_size, opt.hidden_size)
+        game = SenderReceiverRnnReinforce(
             sender,
             receiver,
             loss,
@@ -100,8 +102,8 @@ def get_game(opt):
             receiver_entropy_coeff=0.01,
         )
     elif opts.mode == "gs":
-        sender = core.GumbelSoftmaxWrapper(sender, temperature=opt.gs_tau)
-        game = core.SymbolGameGS(sender, receiver, loss_nll)
+        sender = core.RnnSenderGS(sender, temperature=opt.gs_tau)
+        game = core.SenderReceiverRnnGS(sender, receiver, loss_nll)
     else:
         raise RuntimeError(f"Unknown training mode: {opts.mode}")
 
@@ -110,6 +112,7 @@ def get_game(opt):
 
 if __name__ == "__main__":
     opts = parse_arguments()
+    # print(opts.batch_size)
 
     # data_folder = os.path.join(opts.root, "train/")
     # dataset = load_from_disk(data_folder)
@@ -147,6 +150,7 @@ if __name__ == "__main__":
         callbacks=callbacks,
     )
 
+    # print(opts)
     trainer.train(n_epochs=opts.n_epochs)
 
     core.close()

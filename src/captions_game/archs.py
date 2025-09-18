@@ -21,7 +21,7 @@ class InformedSender(nn.Module):
         super(InformedSender, self).__init__()
         self.game_size = game_size
         self.embedding_size = embedding_size
-        self.hidden_size = hidden_size
+        self.hidden_size = hidden_size # removed bc it doesnt seem to be used
         self.vocab_size = vocab_size
         self.temp = temp
 
@@ -36,10 +36,11 @@ class InformedSender(nn.Module):
         self.conv3 = nn.Conv2d(
             1, 1, kernel_size=(hidden_size, 1), stride=(hidden_size, 1), bias=False
         )
-        self.lin4 = nn.Linear(embedding_size, vocab_size, bias=False)
+        # self.lin4 = nn.Linear(embedding_size, vocab_size, bias=False)
+        self.lin4 = nn.Linear(embedding_size, hidden_size, bias=False)
 
     def forward(self, x, _aux_input=None):
-        emb = self.return_embeddings(x)
+        emb = self.return_embeddings(x.permute(1, 0, 2))
 
         # in: h of size (batch_size, 1, game_size, embedding_size)
         # out: h of size (batch_size, hidden_size, 1, embedding_size)
@@ -57,9 +58,11 @@ class InformedSender(nn.Module):
         h = self.lin4(h)
         h = h.mul(1.0 / self.temp)
         # h of size (batch_size, vocab_size)
-        logits = F.log_softmax(h, dim=1)
+        # logits = F.log_softmax(h, dim=1)
 
-        return logits
+        #print("Sender logits shape:", logits.shape)
+        # return logits
+        return h
 
     def return_embeddings(self, x):
         # embed each image (left or right)
@@ -94,10 +97,11 @@ class Receiver(nn.Module):
 
     def forward(self, signal, x, _aux_input=None):
         # embed each image (left or right)
-        emb = self.return_embeddings(x)
+        emb = self.return_embeddings(x.permute(1, 0, 2))
         # embed the signal
         if len(signal.size()) == 3:
             signal = signal.squeeze(dim=-1)
+        #print('signal shape: ',signal.shape)
         h_s = self.lin2(signal)
         # h_s is of size batch_size x embedding_size
         h_s = h_s.unsqueeze(dim=1)
