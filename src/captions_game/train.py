@@ -10,8 +10,9 @@ import torch.nn.functional as F
 
 import egg.core as core
 from egg.zoo.signal_game.archs import InformedSender, Receiver
-from egg.zoo.signal_game.features import ImageNetFeat, ImagenetLoader
-
+# from egg.zoo.signal_game.features import ImageNetFeat, ImagenetLoader
+from src.captions_game.features import CaptionsLoader
+from datasets import load_from_disk, Dataset
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -72,7 +73,7 @@ def loss_nll(
 
 
 def get_game(opt):
-    feat_size = 4096
+    feat_size = 1000#4096
     sender = InformedSender(
         opt.game_size,
         feat_size,
@@ -110,10 +111,11 @@ def get_game(opt):
 if __name__ == "__main__":
     opts = parse_arguments()
 
-    data_folder = os.path.join(opts.root, "train/")
-    dataset = ImageNetFeat(root=data_folder)
+    # data_folder = os.path.join(opts.root, "train/")
+    # dataset = load_from_disk(data_folder)
+    dataset = load_from_disk(opts.root)
 
-    train_loader = ImagenetLoader(
+    train_loader = CaptionsLoader(
         dataset,
         batch_size=opts.batch_size,
         shuffle=True,
@@ -121,7 +123,7 @@ if __name__ == "__main__":
         batches_per_epoch=opts.batches_per_epoch,
         seed=None,
     )
-    validation_loader = ImagenetLoader(
+    validation_loader = CaptionsLoader(
         dataset,
         opt=opts,
         batch_size=opts.batch_size,
