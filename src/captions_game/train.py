@@ -88,7 +88,7 @@ def get_game(opt):
         opt.game_size,
         feat_size,
         opt.embedding_size,
-        opt.vocab_size,
+        opt.hidden_size,
         reinforce=(opts.mode == "rf"),
     )
     if opts.mode == "rf":
@@ -150,7 +150,7 @@ if __name__ == "__main__":
         callbacks=callbacks,
     )
 
-    # print(opts)
+    print(opts)
     trainer.train(n_epochs=opts.n_epochs)
 
     core.close()

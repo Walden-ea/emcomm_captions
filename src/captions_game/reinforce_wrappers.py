@@ -289,16 +289,16 @@ class RnnSenderReinforce(nn.Module):
                 for i in range(self.num_layers)
             ]
         )  # noqa: E502
-        #print(f"RNN cell hidden size: {hidden_size}")
+        ##print(f"RNN cell hidden size: {hidden_size}")
         self.reset_parameters()
 
     def reset_parameters(self):
         nn.init.normal_(self.sos_embedding, 0.0, 0.01)
 
     def forward(self, x, aux_input=None):
-        #print("self.agent:", self.agent)
+        ##print("self.agent:", self.agent)
         prev_hidden = [self.agent(x, aux_input)]
-        #print(prev_hidden[0].shape)
+        ##print(prev_hidden[0].shape)
         prev_hidden.extend(
             [torch.zeros_like(prev_hidden[0]) for _ in range(self.num_layers - 1)]
         )
@@ -308,7 +308,7 @@ class RnnSenderReinforce(nn.Module):
         ]  # only used for LSTM
 
         input = torch.stack([self.sos_embedding] * x.size(0))
-        #print('x.shape (0 should be batch size)', x.shape)
+        ##print('x.shape (0 should be batch size)', x.shape)
 
         sequence = []
         logits = []
@@ -320,8 +320,8 @@ class RnnSenderReinforce(nn.Module):
                     h_t, c_t = layer(input, (prev_hidden[i], prev_c[i]))
                     prev_c[i] = c_t
                 else:
-                    print(input.shape, prev_hidden[i].shape)
-                    print(layer)
+                    #print(input.shape, prev_hidden[i].shape)
+                    #print(layer)
                     h_t = layer(input, prev_hidden[i])
                 prev_hidden[i] = h_t
                 input = h_t
@@ -368,8 +368,10 @@ class RnnReceiverReinforce(nn.Module):
         self.encoder = RnnEncoder(vocab_size, embed_dim, hidden_size, cell, num_layers)
 
     def forward(self, message, input=None, aux_input=None, lengths=None):
-        print('msg shape:', message.shape)
+        #print('msg shape:', message.shape)
+        #print(message)
         encoded = self.encoder(message, lengths)
+        #print('encoded:', encoded.shape)
         sample, logits, entropy = self.agent(encoded, input, aux_input)
 
         return sample, logits, entropy
@@ -507,7 +509,7 @@ class SenderReceiverRnnReinforce(nn.Module):
         )
 
     def forward(self, sender_input, labels, receiver_input=None, aux_input=None):
-        #print(sender_input.shape)
+        ##print(sender_input.shape)
         return self.mechanics(
             self.sender,
             self.receiver,
@@ -566,15 +568,16 @@ class CommunicationRnnReinforce(nn.Module):
         receiver_input=None,
         aux_input=None,
     ):
-        #print(sender_input.shape)
-        #print(sender)
+        ##print(sender_input.shape)
+        ##print(sender)
         message, log_prob_s, entropy_s = sender(sender_input, aux_input)
-        #print("message shape:", message.shape)
+        ##print("message shape:", message.shape)
+        #print("Sender log_prob shape:", log_prob_s.shape)
         message_length = find_lengths(message)
         receiver_output, log_prob_r, entropy_r = receiver(
             message, receiver_input, aux_input, message_length
         )
-
+        #print("Receiver log_prob shape:", log_prob_r.shape)
         loss, aux_info = loss(
             sender_input, message, receiver_input, receiver_output, labels, aux_input
         )
@@ -586,9 +589,13 @@ class CommunicationRnnReinforce(nn.Module):
         # care about the rest
         effective_log_prob_s = torch.zeros_like(log_prob_r)
 
+        #print('message from after the receiver:', message)
         for i in range(message.size(1)):
             not_eosed = (i < message_length).float()
             effective_entropy_s += entropy_s[:, i] * not_eosed
+            #print(f"log_prob_s[:, {i}].shape: {log_prob_s[:, i].shape}")
+            #print(f"not_eosed.shape: {not_eosed.shape}")
+            #print(f"effective_log_prob_s before adding: {effective_log_prob_s.shape}")
             effective_log_prob_s += log_prob_s[:, i] * not_eosed
         effective_entropy_s = effective_entropy_s / message_length.float()
 

@@ -84,16 +84,18 @@ class InformedSender(nn.Module):
 
 
 class Receiver(nn.Module):
-    def __init__(self, game_size, feat_size, embedding_size, vocab_size, reinforce):
+    # def __init__(self, game_size, feat_size, embedding_size, vocab_size, reinforce):
+    def __init__(self, game_size, feat_size, embedding_size, hidden_size, reinforce):
         super(Receiver, self).__init__()
         self.game_size = game_size
         self.embedding_size = embedding_size
 
         self.lin1 = nn.Linear(feat_size, embedding_size, bias=False)
-        if reinforce:
-            self.lin2 = nn.Embedding(vocab_size, embedding_size)
-        else:
-            self.lin2 = nn.Linear(vocab_size, embedding_size, bias=False)
+        # if reinforce:
+        #     self.lin2 = nn.Embedding(vocab_size, embedding_size)
+        # else:
+        #     self.lin2 = nn.Linear(vocab_size, embedding_size, bias=False)
+        self.lin2 = nn.Linear(hidden_size, embedding_size, bias=False)
 
     def forward(self, signal, x, _aux_input=None):
         # embed each image (left or right)
@@ -110,10 +112,21 @@ class Receiver(nn.Module):
         # h_s is of size batch_size x embedding_size x 1
         out = torch.bmm(emb, h_s)
         # out is of size batch_size x game_size x 1
-        out = out.squeeze(dim=-1)
+        logits = out.squeeze(dim=-1)
         # out is of size batch_size x game_size
-        log_probs = F.log_softmax(out, dim=1)
-        return log_probs
+        # log_probs = F.log_softmax(out, dim=1)
+        
+
+        dist = torch.distributions.Categorical(logits=logits)
+        sample = dist.sample()                   # (batch,)
+        entropy = dist.entropy()                 # (batch,)
+
+        #print("logits shape:", logits.shape)
+        #print("sample shape:", sample.shape)
+        #print("entropy shape:", entropy.shape)
+        log_prob = dist.log_prob(sample)  
+        return sample, log_prob, entropy
+        # return log_probs
 
     def return_embeddings(self, x):
         # embed each image (left or right)
