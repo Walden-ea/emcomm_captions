@@ -44,11 +44,12 @@ class _BatchIterator:
         images_indexes_sender = self.random_state.choice(
             len(loader.dataset), (opt.batch_size, opt.game_size), replace=False
         )
-
+        images_vectors_sender = []
         for i in range(opt.game_size):
-            x = loader.dataset['features'][images_indexes_sender[:, i]]
+            x = torch.tensor(loader.dataset['features'][images_indexes_sender[:, i]])
             images_vectors_sender.append(x)
 
+        
         images_vectors_sender = torch.stack(images_vectors_sender).contiguous()
         y = torch.zeros(opt.batch_size).long()
 
