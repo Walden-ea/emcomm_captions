@@ -21,7 +21,7 @@ class InformedSender(nn.Module):
         super(InformedSender, self).__init__()
         self.game_size = game_size
         self.embedding_size = embedding_size
-        self.hidden_size = hidden_size # removed bc it doesnt seem to be used
+        self.hidden_size = hidden_size
         self.vocab_size = vocab_size
         self.temp = temp
 
@@ -114,10 +114,18 @@ class Receiver(nn.Module):
         # out is of size batch_size x game_size x 1
         logits = out.squeeze(dim=-1)
         # out is of size batch_size x game_size
-        # log_probs = F.log_softmax(out, dim=1)
-        
+        log_probs = F.log_softmax(out, dim=1)
+        # logprob = F.log_softmax(logits, dim=1)
+        # prob = logprob.exp()
+        # entropy = -(logprob * prob).sum(dim=1)  # per sample
 
-        dist = torch.distributions.Categorical(logits=logits)
+        # print("out shape:", :",out.shape)
+        # print("logprob shape logprob.shape)
+        # print("entropy shape:", entropy.shape)
+        # return out, logprob, entropy
+
+        # print("Receiver logits shape:", logits.shape)
+        dist = torch.distributions.Categorical(logits=log_probs)
         sample = dist.sample()                   # (batch,)
         entropy = dist.entropy()                 # (batch,)
 
