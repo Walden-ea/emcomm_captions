@@ -114,7 +114,11 @@ class Receiver(nn.Module):
         # out is of size batch_size x game_size x 1
         logits = out.squeeze(dim=-1)
         # out is of size batch_size x game_size
-        log_probs = F.log_softmax(out, dim=1)
+        # print("out shape:", out.shape)
+        # print("logits shape:", logits.shape)
+        log_probs = F.log_softmax(logits, dim=1)
+        # print('softmax on out, shape:', F.log_softmax(out, dim=1).shape)
+        # print("log_probs shape:", log_probs.shape)
         # logprob = F.log_softmax(logits, dim=1)
         # prob = logprob.exp()
         # entropy = -(logprob * prob).sum(dim=1)  # per sample
