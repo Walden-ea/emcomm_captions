@@ -36,8 +36,8 @@ class InformedSender(nn.Module):
         self.conv3 = nn.Conv2d(
             1, 1, kernel_size=(hidden_size, 1), stride=(hidden_size, 1), bias=False
         )
-        # self.lin4 = nn.Linear(embedding_size, vocab_size, bias=False)
-        self.lin4 = nn.Linear(embedding_size, hidden_size, bias=False)
+        self.lin4 = nn.Linear(embedding_size, vocab_size, bias=False)
+        # self.lin4 = nn.Linear(embedding_size, hidden_size, bias=False)
 
     def forward(self, x, _aux_input=None):
         emb = self.return_embeddings(x.permute(1, 0, 2))
@@ -58,11 +58,11 @@ class InformedSender(nn.Module):
         h = self.lin4(h)
         h = h.mul(1.0 / self.temp)
         # h of size (batch_size, vocab_size)
-        # logits = F.log_softmax(h, dim=1)
+        logits = F.log_softmax(h, dim=1)
 
         #print("Sender logits shape:", logits.shape)
-        # return logits
-        return h
+        return logits
+        # return h
 
     def return_embeddings(self, x):
         # embed each image (left or right)
@@ -103,13 +103,17 @@ class Receiver(nn.Module):
         # embed the signal
         if len(signal.size()) == 3:
             signal = signal.squeeze(dim=-1)
-        #print('signal shape: ',signal.shape)
+        # print('signal shape: ',signal.shape)
+        # print('signal:', signal)
         h_s = self.lin2(signal)
         # h_s is of size batch_size x embedding_size
         h_s = h_s.unsqueeze(dim=1)
         # h_s is of size batch_size x 1 x embedding_size
         h_s = h_s.transpose(1, 2)
         # h_s is of size batch_size x embedding_size x 1
+
+        # print("emb shape:", emb.shape)
+        # print("h_s shape:", h_s.shape)
         out = torch.bmm(emb, h_s)
         # out is of size batch_size x game_size x 1
         logits = out.squeeze(dim=-1)

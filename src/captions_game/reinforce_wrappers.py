@@ -370,8 +370,13 @@ class RnnReceiverReinforce(nn.Module):
     def forward(self, message, input=None, aux_input=None, lengths=None):
         #print('msg shape:', message.shape)
         #print(message)
+        # print('message shape: ', message.shape)
+        # print('lengths: ', lengths)
         encoded = self.encoder(message, lengths)
         #print('encoded:', encoded.shape)
+
+        # print('encoded shape: ', encoded.shape)
+        # print('input shape: ', input.shape)
         sample, logits, entropy = self.agent(encoded, input, aux_input)
 
         return sample, logits, entropy
@@ -570,10 +575,30 @@ class CommunicationRnnReinforce(nn.Module):
     ):
         ##print(sender_input.shape)
         ##print(sender)
-        message, log_prob_s, entropy_s = sender(sender_input, aux_input)
+        # message, log_prob_s, entropy_s = sender(sender_input, aux_input)
+        message, sender_log_prob, sender_entropy = sender(sender_input, aux_input)
+
+        zeros = torch.zeros((message.size(0), 1)).to(message.device)
+
+        message = torch.cat([message.unsqueeze(-1), zeros.long()], dim=1)
+        sender_log_prob = torch.cat([sender_log_prob.unsqueeze(-1), zeros], dim=1)
+        sender_entropy = torch.cat([sender_entropy.unsqueeze(-1), zeros], dim=1)
+
+        # print('ZEROS HANDLED')
+        # print("message after eos handling:", message)
+        # print("Sender log_prob after eos handling:", sender_log_prob)
+        # print("Sender entropy after eos handling:", sender_entropy)
+
+
         ##print("message shape:", message.shape)
         #print("Sender log_prob shape:", log_prob_s.shape)
         message_length = find_lengths(message)
+        # message_length = torch.ones(zeros.shape[0]).long() * 2#torch.tensor([2])
+        # print('message_length: ', message_length)
+
+        # print('message: ', message)
+        # print('reciever input: ', receiver_input)
+        # print('aux input: ', aux_input)
         receiver_output, log_prob_r, entropy_r = receiver(
             message, receiver_input, aux_input, message_length
         )
@@ -583,21 +608,26 @@ class CommunicationRnnReinforce(nn.Module):
         )
 
         # the entropy of the outputs of S before and including the eos symbol - as we don't care about what's after
-        effective_entropy_s = torch.zeros_like(entropy_r)
+        # effective_entropy_s = torch.zeros_like(entropy_r)
 
-        # the log prob of the choices made by S before and including the eos symbol - again, we don't
-        # care about the rest
-        effective_log_prob_s = torch.zeros_like(log_prob_r)
+        # # the log prob of the choices made by S before and including the eos symbol - again, we don't
+        # # care about the rest
+        # effective_log_prob_s = torch.zeros_like(log_prob_r)
 
-        #print('message from after the receiver:', message)
-        for i in range(message.size(1)):
-            not_eosed = (i < message_length).float()
-            effective_entropy_s += entropy_s[:, i] * not_eosed
-            #print(f"log_prob_s[:, {i}].shape: {log_prob_s[:, i].shape}")
-            #print(f"not_eosed.shape: {not_eosed.shape}")
-            #print(f"effective_log_prob_s before adding: {effective_log_prob_s.shape}")
-            effective_log_prob_s += log_prob_s[:, i] * not_eosed
-        effective_entropy_s = effective_entropy_s / message_length.float()
+        # #print('message from after the receiver:', message)
+        # for i in range(message.size(1)):
+        #     not_eosed = (i < message_length).float()
+        #     effective_entropy_s += entropy_s[:, i] * not_eosed
+        #     #print(f"log_prob_s[:, {i}].shape: {log_prob_s[:, i].shape}")
+        #     #print(f"not_eosed.shape: {not_eosed.shape}")
+        #     #print(f"effective_log_prob_s before adding: {effective_log_prob_s.shape}")
+        #     effective_log_prob_s += log_prob_s[:, i] * not_eosed
+        # effective_entropy_s = effective_entropy_s / message_length.float()
+        
+
+        effective_entropy_s = sender_entropy
+        entropy_s = sender_entropy
+        effective_log_prob_s = sender_log_prob
 
         weighted_entropy = (
             effective_entropy_s.mean() * self.sender_entropy_coeff

@@ -30,7 +30,7 @@ class _BatchIterator:
         return self
 
     def __next__(self):
-        if self.batches_generated > self.n_batches:
+        if self.batches_generated >= self.n_batches:
             raise StopIteration()
 
         batch_data = self.get_batch()

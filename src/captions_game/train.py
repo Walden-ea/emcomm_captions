@@ -92,14 +92,15 @@ def get_game(opt):
         reinforce=(opts.mode == "rf"),
     )
     if opts.mode == "rf":
-        sender = RnnSenderReinforce(sender, opt.vocab_size, opt.embedding_size, hidden_size=opt.hidden_size, max_len=opts.max_len)
+        # sender = RnnSenderReinforce(sender, opt.vocab_size, opt.embedding_size, hidden_size=opt.hidden_size, max_len=opts.max_len)
+        sender = core.ReinforceWrapper(sender)
         receiver = RnnReceiverReinforce(receiver, opt.vocab_size, opt.embedding_size, opt.hidden_size)
         game = SenderReceiverRnnReinforce(
             sender,
             receiver,
             loss,
-            sender_entropy_coeff=0.01,
-            receiver_entropy_coeff=0.01,
+            sender_entropy_coeff=0.0,#0.01,
+            receiver_entropy_coeff=0.0,#0.01,
         )
     elif opts.mode == "gs":
         sender = core.RnnSenderGS(sender, temperature=opt.gs_tau)
@@ -116,7 +117,7 @@ if __name__ == "__main__":
 
     # data_folder = os.path.join(opts.root, "train/")
     # dataset = load_from_disk(data_folder)
-    dataset = load_from_disk(opts.root)
+    dataset = load_from_disk(opts.root).select(range(3))
 
     train_loader = CaptionsLoader(
         dataset,
