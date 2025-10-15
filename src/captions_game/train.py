@@ -11,10 +11,10 @@ import torch.nn.functional as F
 import egg.core as core
 # from egg.zoo.signal_game.archs import InformedSender, Receiver
 # from egg.zoo.signal_game.features import ImageNetFeat, ImagenetLoader
-from src.captions_game.features import CaptionsLoader
-from src.captions_game.archs import InformedSender, Receiver
+from emcomm_captions.src.captions_game.features import CaptionsLoader
+from emcomm_captions.src.captions_game.archs import InformedSender, Receiver
 from datasets import load_from_disk, Dataset
-from src.captions_game.reinforce_wrappers import RnnSenderReinforce, RnnReceiverReinforce, SenderReceiverRnnReinforce
+from emcomm_captions.src.captions_game.reinforce_wrappers import RnnSenderReinforce, RnnReceiverReinforce, SenderReceiverRnnReinforce
 
 def parse_arguments():
     parser = argparse.ArgumentParser()

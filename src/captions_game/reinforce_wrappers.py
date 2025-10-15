@@ -583,7 +583,7 @@ class CommunicationRnnReinforce(nn.Module):
         message = torch.cat([message.unsqueeze(-1), zeros.long()], dim=1)
         sender_log_prob = torch.cat([sender_log_prob.unsqueeze(-1), zeros], dim=1)
         sender_entropy = torch.cat([sender_entropy.unsqueeze(-1), zeros], dim=1)
-
+        entropy_s = sender_entropy
         # print('ZEROS HANDLED')
         # print("message after eos handling:", message)
         # print("Sender log_prob after eos handling:", sender_log_prob)
@@ -608,32 +608,34 @@ class CommunicationRnnReinforce(nn.Module):
         )
 
         # the entropy of the outputs of S before and including the eos symbol - as we don't care about what's after
-        # effective_entropy_s = torch.zeros_like(entropy_r)
+        effective_entropy_s = torch.zeros_like(entropy_r)
 
         # # the log prob of the choices made by S before and including the eos symbol - again, we don't
         # # care about the rest
-        # effective_log_prob_s = torch.zeros_like(log_prob_r)
+        effective_log_prob_s = torch.zeros_like(log_prob_r)
 
         # #print('message from after the receiver:', message)
-        # for i in range(message.size(1)):
-        #     not_eosed = (i < message_length).float()
-        #     effective_entropy_s += entropy_s[:, i] * not_eosed
-        #     #print(f"log_prob_s[:, {i}].shape: {log_prob_s[:, i].shape}")
-        #     #print(f"not_eosed.shape: {not_eosed.shape}")
-        #     #print(f"effective_log_prob_s before adding: {effective_log_prob_s.shape}")
-        #     effective_log_prob_s += log_prob_s[:, i] * not_eosed
-        # effective_entropy_s = effective_entropy_s / message_length.float()
+        for i in range(message.size(1)):
+            not_eosed = (i < message_length).float()
+            effective_entropy_s += entropy_s[:, i] * not_eosed
+            #print(f"log_prob_s[:, {i}].shape: {log_prob_s[:, i].shape}")
+            #print(f"not_eosed.shape: {not_eosed.shape}")
+            #print(f"effective_log_prob_s before adding: {effective_log_prob_s.shape}")
+            effective_log_prob_s += sender_log_prob[:, i] * not_eosed
+        effective_entropy_s = effective_entropy_s / message_length.float()
         
 
-        effective_entropy_s = sender_entropy
-        entropy_s = sender_entropy
-        effective_log_prob_s = sender_log_prob
+        # effective_entropy_s = sender_entropy
+        # entropy_s = sender_entropy
+        # effective_log_prob_s = sender_log_prob
 
         weighted_entropy = (
             effective_entropy_s.mean() * self.sender_entropy_coeff
             + entropy_r.mean() * self.receiver_entropy_coeff
         )
 
+        print("effective_log_prob_s:", effective_log_prob_s, 'shape:', effective_log_prob_s.shape)
+        print("log_prob_r:", log_prob_r, 'shape:', log_prob_r.shape)
         log_prob = effective_log_prob_s + log_prob_r
 
         length_loss = message_length.float() * self.length_cost
