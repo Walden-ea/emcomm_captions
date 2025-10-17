@@ -6,6 +6,7 @@
 import argparse
 import os
 
+import numpy as np
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 
@@ -80,7 +81,7 @@ def loss_nll(
 
 
 def get_game(opt):
-    feat_size = 1000#4096
+    feat_size = 10#1000#4096
     sender = InformedSender(
         opt.game_size,
         feat_size,
@@ -123,7 +124,25 @@ if __name__ == "__main__":
 
     # data_folder = os.path.join(opts.root, "train/")
     # dataset = load_from_disk(data_folder)
-    dataset = load_from_disk(opts.root).select(range(5))
+    # dataset = load_from_disk(opts.root).select(range(5))
+
+    # data = {
+    # "captions": [""] * 5,              # empty captions
+    # "features": [[float(i)] for i in range(5)]  # 1D feature = index
+    # }
+
+    n = 10
+    data = {
+        "captions": [""] * n,
+        "features": [np.eye(n)[i].tolist() for i in range(n)]  # one-hot vectors
+    }
+
+
+
+    dataset = Dataset.from_dict(data)
+    # print(dataset)
+    # print(dataset['features'])
+    # exit(0)
 
     train_loader = CaptionsLoader(
         dataset,
