@@ -7,12 +7,14 @@ import argparse
 import os
 
 import torch.nn.functional as F
+from torch.utils.tensorboard import SummaryWriter
 
 import egg.core as core
 from egg.zoo.signal_game.archs import InformedSender, Receiver
 # from egg.zoo.signal_game.features import ImageNetFeat, ImagenetLoader
 from src.captions_game.features import CaptionsLoader
 from datasets import load_from_disk, Dataset
+from src.captions_game.trainers import Trainer
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -37,6 +39,11 @@ def parse_arguments():
         type=int,
         default=100,
         help="Batches in a single training/validation epoch",
+    )
+    parser.add_argument(
+        "--wandb",
+        action="store_true",
+        help="Logging to wandb",
     )
     parser.add_argument("--inf_rec", type=int, default=0, help="Use informed receiver")
     parser.add_argument(
@@ -108,12 +115,15 @@ def get_game(opt):
     return game
 
 
+# def log_opts(opts)
+
 if __name__ == "__main__":
     opts = parse_arguments()
+    print(opts)
 
     # data_folder = os.path.join(opts.root, "train/")
     # dataset = load_from_disk(data_folder)
-    dataset = load_from_disk(opts.root)
+    dataset = load_from_disk(opts.root).select(range(5))
 
     train_loader = CaptionsLoader(
         dataset,
@@ -139,12 +149,13 @@ if __name__ == "__main__":
         callbacks = []
 
     callbacks.append(core.ConsoleLogger(as_json=True, print_train_loss=True))
-    trainer = core.Trainer(
+    trainer = Trainer(
         game=game,
         optimizer=optimizer,
         train_data=train_loader,
         validation_data=validation_loader,
         callbacks=callbacks,
+        opts=opts,
     )
 
     trainer.train(n_epochs=opts.n_epochs)
