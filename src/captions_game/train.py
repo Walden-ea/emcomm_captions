@@ -12,10 +12,10 @@ from torch.utils.tensorboard import SummaryWriter
 import egg.core as core
 # from egg.zoo.signal_game.archs import InformedSender, Receiver
 # from egg.zoo.signal_game.features import ImageNetFeat, ImagenetLoader
-from emcomm_captions.src.captions_game.features import CaptionsLoader
-from emcomm_captions.src.captions_game.archs import InformedSender, Receiver
+from src.captions_game.features import CaptionsLoader
+from src.captions_game.archs import InformedSender, Receiver
 from datasets import load_from_disk, Dataset
-from emcomm_captions.src.captions_game.reinforce_wrappers import RnnSenderReinforce, RnnReceiverReinforce, SenderReceiverRnnReinforce
+from src.captions_game.reinforce_wrappers import RnnSenderReinforce, RnnReceiverReinforce, SenderReceiverRnnReinforce
 from src.captions_game.trainers import Trainer
 
 def parse_arguments():
