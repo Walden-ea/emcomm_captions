@@ -60,18 +60,30 @@ class WandbLogger(CoreWandbLogger):
     def __init__(
         self,
         opts: Union[argparse.ArgumentParser, Dict, str, None] = None,
-        project: Optional[str] = 'emcomm',
+        project: Optional[str] = 'EmComm-Caption',
         run_id: Optional[str] = None,
+        run_name: Optional[str] = None,
         **kwargs,
     ):
-        super().__init__(opts=opts, project=project, run_id=run_id, **kwargs)
+        self.opts = opts
+
+        wandb.init(project=project, id=run_id, name=run_name, **kwargs)
+        wandb.config.update(opts)
 
     def _log_metrics(self, phase: str, loss: float, logs: Interaction, epoch: int):
         """Helper for logging losses and auxiliary metrics."""
         metrics = {f"{phase}/loss": loss, "epoch": epoch}
         for k, v in logs.aux.items():
             metrics[f"{phase}/{k}"] = v.mean()
-        self.log_to_wandb(metrics, commit=True)
+        self.log_to_wandb(metrics)#, commit=True)
+        # self.log_to_wandb({
+        #     f"{phase}/interaction/message": {logs.message},
+        #     f"{phase}/interaction/receiver_output": {logs.receiver_output},
+        #     }, commit=True)
+        # print({
+        #     f"{phase}/interaction/message": {logs.message},
+        #     f"{phase}/interaction/receiver_output": {logs.receiver_output},
+        #     })
 
     def on_validation_end(self, loss: float, logs: Interaction, epoch: int):
         if self.trainer.distributed_context.is_leader:
@@ -129,5 +141,5 @@ class Trainer(CoreTrainer):
             # assert (
             #     common_opts.tensorboard_dir
             # ), "tensorboard directory has to be specified"
-            wandb_logger = WandbLogger(opts)
+            wandb_logger = WandbLogger(opts, run_name=opts.wandb_name)
             self.callbacks.append(wandb_logger)
