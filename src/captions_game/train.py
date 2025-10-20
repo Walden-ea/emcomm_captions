@@ -55,6 +55,11 @@ def parse_arguments():
         default="rf",
         help="Training mode: Gumbel-Softmax (gs) or Reinforce (rf). Default: rf.",
     )
+    parser.add_argument(
+        "--wandb_name",
+        type=str,
+        help="Optional wandb run name",
+    )
     parser.add_argument("--gs_tau", type=float, default=1.0, help="GS temperature")
 
     opt = core.init(parser)
