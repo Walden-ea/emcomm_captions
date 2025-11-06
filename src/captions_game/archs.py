@@ -25,40 +25,45 @@ class InformedSender(nn.Module):
         self.vocab_size = vocab_size
         self.temp = temp
 
-        self.lin1 = nn.Linear(feat_size, embedding_size, bias=False)
-        self.conv2 = nn.Conv2d(
-            1,
-            hidden_size,
-            kernel_size=(game_size, 1),
-            stride=(game_size, 1),
-            bias=False,
-        )
-        self.conv3 = nn.Conv2d(
-            1, 1, kernel_size=(hidden_size, 1), stride=(hidden_size, 1), bias=False
-        )
-        self.lin4 = nn.Linear(embedding_size, vocab_size, bias=False)
+        # self.lin1 = nn.Linear(feat_size, embedding_size, bias=False)
+        # self.conv2 = nn.Conv2d(
+        #     1,
+        #     hidden_size,
+        #     kernel_size=(game_size, 1),
+        #     stride=(game_size, 1),
+        #     bias=False,
+        # )
+        # self.conv3 = nn.Conv2d(
+        #     1, 1, kernel_size=(hidden_size, 1), stride=(hidden_size, 1), bias=False
+        # )
+        # self.lin4 = nn.Linear(embedding_size, vocab_size, bias=False)
 
     def forward(self, x, _aux_input=None):
-        emb = self.return_embeddings(x)
+        # print(f"Features sender: {x}")
+        # print(f"Features sender shape: {x.shape}")
+        # emb = self.return_embeddings(x)
 
-        # in: h of size (batch_size, 1, game_size, embedding_size)
-        # out: h of size (batch_size, hidden_size, 1, embedding_size)
-        h = self.conv2(emb)
-        h = torch.sigmoid(h)
-        # in: h of size (batch_size, hidden_size, 1, embedding_size)
-        # out: h of size (batch_size, 1, hidden_size, embedding_size)
-        h = h.transpose(1, 2)
-        h = self.conv3(h)
-        # h of size (batch_size, 1, 1, embedding_size)
-        h = torch.sigmoid(h)
-        h = h.squeeze(dim=1)
-        h = h.squeeze(dim=1)
-        # h of size (batch_size, embedding_size)
-        h = self.lin4(h)
-        h = h.mul(1.0 / self.temp)
-        # h of size (batch_size, vocab_size)
-        logits = F.log_softmax(h, dim=1)
+        # # in: h of size (batch_size, 1, game_size, embedding_size)
+        # # out: h of size (batch_size, hidden_size, 1, embedding_size)
+        # h = self.conv2(emb)
+        # h = torch.sigmoid(h)
+        # # in: h of size (batch_size, hidden_size, 1, embedding_size)
+        # # out: h of size (batch_size, 1, hidden_size, embedding_size)
+        # h = h.transpose(1, 2)
+        # h = self.conv3(h)
+        # # h of size (batch_size, 1, 1, embedding_size)
+        # h = torch.sigmoid(h)
+        # h = h.squeeze(dim=1)
+        # h = h.squeeze(dim=1)
+        # # h of size (batch_size, embedding_size)
+        # h = self.lin4(h)
+        # h = h.mul(1.0 / self.temp)
+        # # h of size (batch_size, vocab_size)
+        # logits = F.log_softmax(h, dim=1)
+        logits = x[0, :, :]*20
+        # print(x)
 
+        # print(f"Logits:{logits}")
         return logits
 
     def return_embeddings(self, x):
@@ -93,6 +98,7 @@ class Receiver(nn.Module):
             self.lin2 = nn.Linear(vocab_size, embedding_size, bias=False)
 
     def forward(self, signal, x, _aux_input=None):
+        
         # embed each image (left or right)
         emb = self.return_embeddings(x)
         # embed the signal

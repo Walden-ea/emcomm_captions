@@ -11,11 +11,12 @@ import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 
 import egg.core as core
-from egg.zoo.signal_game.archs import InformedSender, Receiver
+from src.captions_game.archs import InformedSender, Receiver
 # from egg.zoo.signal_game.features import ImageNetFeat, ImagenetLoader
 from src.captions_game.features import CaptionsLoader
 from datasets import load_from_disk, Dataset
 from src.captions_game.trainers import Trainer
+from src.captions_game.reinforce_wrappers import ReinforceWrapper, SymbolGameReinforce
 
 def parse_arguments():
     parser = argparse.ArgumentParser()
@@ -103,9 +104,9 @@ def get_game(opt):
         reinforce=(opts.mode == "rf"),
     )
     if opts.mode == "rf":
-        sender = core.ReinforceWrapper(sender)
-        receiver = core.ReinforceWrapper(receiver)
-        game = core.SymbolGameReinforce(
+        sender = ReinforceWrapper(sender)
+        receiver = ReinforceWrapper(receiver)
+        game = SymbolGameReinforce(
             sender,
             receiver,
             loss,

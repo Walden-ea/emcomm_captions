@@ -30,7 +30,7 @@ class _BatchIterator:
         return self
 
     def __next__(self):
-        if self.batches_generated > self.n_batches:
+        if self.batches_generated >= self.n_batches:
             raise StopIteration()
 
         batch_data = self.get_batch()
@@ -41,13 +41,20 @@ class _BatchIterator:
         loader = self.loader
         opt = loader.opt
 
-        images_indexes_sender = self.random_state.choice(
-            len(loader.dataset), (opt.batch_size, opt.game_size), replace=False
-        )
+        # images_indexes_sender = self.random_state.choice(
+        #     len(loader.dataset), (opt.batch_size, opt.game_size), replace=False
+        # )
+        images_indexes_sender = np.stack([
+        self.random_state.choice(len(loader.dataset), opt.game_size, replace=False)
+        for _ in range(opt.batch_size)
+        ])
+        # print(f"images_indexes_sender: {images_indexes_sender}")
         images_vectors_sender = []
         for i in range(opt.game_size):
             x = torch.tensor(loader.dataset['features'][images_indexes_sender[:, i]])
+
             images_vectors_sender.append(x)
+            # print(f"Game item vector {i}: {x}")
 
         
         images_vectors_sender = torch.stack(images_vectors_sender).contiguous()
@@ -59,5 +66,11 @@ class _BatchIterator:
 
             images_vectors_receiver[:, i, :] = images_vectors_sender[permutation, i, :]
             y[i] = permutation.argmin()
+        # print(images_vectors_sender,'\n', y,'\n', images_vectors_receiver)
+        # print(f"images_vectors_sender: {images_vectors_sender}")
+        # print(f"images_vectors_sender shape: {images_vectors_sender.shape}")
+        # print(f"y: {y}")
+        # print(f"images_vectors_receiver: {images_vectors_receiver}")
+        # print(f"images_vectors_receiver shape: {images_vectors_receiver.shape}")
         return images_vectors_sender, y, images_vectors_receiver
 
