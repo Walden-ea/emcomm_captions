@@ -26,6 +26,7 @@ class InformedSender(nn.Module):
         self.temp = temp
 
         # self.lin1 = nn.Linear(feat_size, embedding_size, bias=False)
+        # self.lin1 = nn.Linear(feat_size*game_size, vocab_size, bias=False)self.lin1 = nn.Linear(feat_size*game_size, vocab_size, bias=False)
         # self.conv2 = nn.Conv2d(
         #     1,
         #     hidden_size,
@@ -59,8 +60,12 @@ class InformedSender(nn.Module):
         # h = self.lin4(h)
         # h = h.mul(1.0 / self.temp)
         # # h of size (batch_size, vocab_size)
+        x = x.view(-1, x.size(0) * x.size(2))
+        # print(f'shape of x after reshaping: {x.shape}')
+        logits = self.lin1(x)
+        # print(f'shape of h before logits: {logits.shape}')
         # logits = F.log_softmax(h, dim=1)
-        logits = x[0, :, :]*20
+        # logits = x[0, :, :]*20
         # print(x)
 
         # print(f"Logits:{logits}")
