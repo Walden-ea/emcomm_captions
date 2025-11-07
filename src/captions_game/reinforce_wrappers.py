@@ -634,8 +634,8 @@ class CommunicationRnnReinforce(nn.Module):
             + entropy_r.mean() * self.receiver_entropy_coeff
         )
 
-        print("effective_log_prob_s:", effective_log_prob_s, 'shape:', effective_log_prob_s.shape)
-        print("log_prob_r:", log_prob_r, 'shape:', log_prob_r.shape)
+        # print("effective_log_prob_s:", effective_log_prob_s, 'shape:', effective_log_prob_s.shape)
+        # print("log_prob_r:", log_prob_r, 'shape:', log_prob_r.shape)
         log_prob = effective_log_prob_s + log_prob_r
 
         length_loss = message_length.float() * self.length_cost
@@ -674,6 +674,12 @@ class CommunicationRnnReinforce(nn.Module):
             aux=aux_info,
         )
 
+        print(f"Sender input: {interaction.sender_input}")
+        print(f"Labels: {interaction.labels}")
+        print(f"Message: {interaction.message}")
+        print(f'Receiver input: {interaction.receiver_input}')
+        print(f"Receiver output: {interaction.receiver_output}")
+        print('-----')
         return optimized_loss, interaction
 
 
