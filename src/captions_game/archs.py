@@ -60,7 +60,9 @@ class InformedSender(nn.Module):
         # h of size (batch_size, vocab_size)
         logits = F.log_softmax(h, dim=1)
 
-        #print("Sender logits shape:", logits.shape)
+        print("Sender logits shape:", logits.shape)
+        print('the hardcoded logits shape:', x[0, :, :].shape)
+        # logits = x[0, :, :]*20
         return logits
         # return h
 
