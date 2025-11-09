@@ -25,44 +25,45 @@ class InformedSender(nn.Module):
         self.vocab_size = vocab_size
         self.temp = temp
 
-        self.lin1 = nn.Linear(feat_size, embedding_size, bias=False)
-        self.conv2 = nn.Conv2d(
-            1,
-            hidden_size,
-            kernel_size=(game_size, 1),
-            stride=(game_size, 1),
-            bias=False,
-        )
-        self.conv3 = nn.Conv2d(
-            1, 1, kernel_size=(hidden_size, 1), stride=(hidden_size, 1), bias=False
-        )
-        self.lin4 = nn.Linear(embedding_size, vocab_size, bias=False)
+        # self.lin1 = nn.Linear(feat_size, embedding_size, bias=False)
+        # self.conv2 = nn.Conv2d(
+        #     1,
+        #     hidden_size,
+        #     kernel_size=(game_size, 1),
+        #     stride=(game_size, 1),
+        #     bias=False,
+        # )
+        # self.conv3 = nn.Conv2d(
+        #     1, 1, kernel_size=(hidden_size, 1), stride=(hidden_size, 1), bias=False
+        # )
+        # self.lin4 = nn.Linear(embedding_size, vocab_size, bias=False)
         # self.lin4 = nn.Linear(embedding_size, hidden_size, bias=False)
 
     def forward(self, x, _aux_input=None):
-        emb = self.return_embeddings(x.permute(1, 0, 2))
+        # emb = self.return_embeddings(x.permute(1, 0, 2))
 
-        # in: h of size (batch_size, 1, game_size, embedding_size)
-        # out: h of size (batch_size, hidden_size, 1, embedding_size)
-        h = self.conv2(emb)
-        h = torch.sigmoid(h)
-        # in: h of size (batch_size, hidden_size, 1, embedding_size)
-        # out: h of size (batch_size, 1, hidden_size, embedding_size)
-        h = h.transpose(1, 2)
-        h = self.conv3(h)
-        # h of size (batch_size, 1, 1, embedding_size)
-        h = torch.sigmoid(h)
-        h = h.squeeze(dim=1)
-        h = h.squeeze(dim=1)
-        # h of size (batch_size, embedding_size)
-        h = self.lin4(h)
-        h = h.mul(1.0 / self.temp)
-        # h of size (batch_size, vocab_size)
-        logits = F.log_softmax(h, dim=1)
+        # # in: h of size (batch_size, 1, game_size, embedding_size)
+        # # out: h of size (batch_size, hidden_size, 1, embedding_size)
+        # h = self.conv2(emb)
+        # h = torch.sigmoid(h)
+        # # in: h of size (batch_size, hidden_size, 1, embedding_size)
+        # # out: h of size (batch_size, 1, hidden_size, embedding_size)
+        # h = h.transpose(1, 2)
+        # h = self.conv3(h)
+        # # h of size (batch_size, 1, 1, embedding_size)
+        # h = torch.sigmoid(h)
+        # h = h.squeeze(dim=1)
+        # h = h.squeeze(dim=1)
+        # # h of size (batch_size, embedding_size)
+        # h = self.lin4(h)
+        # h = h.mul(1.0 / self.temp)
+        # # h of size (batch_size, vocab_size)
+        # logits = F.log_softmax(h, dim=1)
 
-        print("Sender logits shape:", logits.shape)
-        print('the hardcoded logits shape:', x[0, :, :].shape)
-        # logits = x[0, :, :]*20
+        # print(f'x shape: {x.shape}')
+        # print("Sender logits shape:", logits.shape)
+        # print('the hardcoded logits shape:', x[:, 0, :].shape)
+        logits = x[:, 0, :]*20
         return logits
         # return h
 
@@ -122,7 +123,7 @@ class Receiver(nn.Module):
         # out is of size batch_size x game_size
         # print("out shape:", out.shape)
         # print("logits shape:", logits.shape)
-        log_probs = F.log_softmax(logits, dim=1)
+        # log_probs = F.log_softmax(logits, dim=1)
         # print('softmax on out, shape:', F.log_softmax(out, dim=1).shape)
         # print("log_probs shape:", log_probs.shape)
         # logprob = F.log_softmax(logits, dim=1)
@@ -135,7 +136,7 @@ class Receiver(nn.Module):
         # return out, logprob, entropy
 
         # print("Receiver logits shape:", logits.shape)
-        dist = torch.distributions.Categorical(logits=log_probs)
+        dist = torch.distributions.Categorical(logits=logits)
         sample = dist.sample()                   # (batch,)
         entropy = dist.entropy()                 # (batch,)
 
