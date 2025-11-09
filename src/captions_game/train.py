@@ -88,7 +88,7 @@ def loss_nll(
 
 
 def get_game(opt):
-    feat_size = 10#1000#4096
+    feat_size = 5#1000#4096
     sender = InformedSender(
         opt.game_size,
         feat_size,
@@ -137,7 +137,7 @@ if __name__ == "__main__":
     # "features": [[float(i)] for i in range(5)]  # 1D feature = index
     # }
 
-    n = 10
+    n = 5
     data = {
         "captions": [""] * n,
         "features": [np.eye(n)[i].tolist() for i in range(n)]  # one-hot vectors
