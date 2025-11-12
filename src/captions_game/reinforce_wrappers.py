@@ -372,7 +372,8 @@ class RnnReceiverReinforce(nn.Module):
         #print(message)
         # print('message shape: ', message.shape)
         # print('lengths: ', lengths)
-        encoded = self.encoder(message, lengths)
+        # encoded = self.encoder(message, lengths)
+        encoded = message
         #print('encoded:', encoded.shape)
 
         # print('encoded shape: ', encoded.shape)
@@ -602,7 +603,6 @@ class CommunicationRnnReinforce(nn.Module):
         receiver_output, log_prob_r, entropy_r = receiver(
             message, receiver_input, aux_input, message_length
         )
-        receiver_output  = (receiver_input[torch.arange(len(message[:,0])), :, message[:,0]] == 1).nonzero(as_tuple=False)[:, 1]
         #print("Receiver log_prob shape:", log_prob_r.shape)
         loss, aux_info = loss(
             sender_input, message, receiver_input, receiver_output, labels, aux_input
