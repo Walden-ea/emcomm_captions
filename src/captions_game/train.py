@@ -30,7 +30,7 @@ def parse_arguments():
         "--game_size", type=int, default=2, help="Number of images seen by an agent"
     )
     parser.add_argument("--same", type=int, default=0, help="Use same concepts")
-    parser.add_argument("--embedding_size", type=int, default=50, help="embedding size")
+    parser.add_argument("--embedding_size", type=int, default=100, help="embedding size")
     parser.add_argument(
         "--hidden_size",
         type=int,
@@ -112,8 +112,8 @@ def get_game(opt):
             sender,
             receiver,
             loss,
-            sender_entropy_coeff=0.0,#0.01,
-            receiver_entropy_coeff=0.0,#0.01,
+            sender_entropy_coeff=0.05,
+            receiver_entropy_coeff=0.05,
         )
     elif opts.mode == "gs":
         sender = core.RnnSenderGS(sender, temperature=opt.gs_tau)

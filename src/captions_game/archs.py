@@ -99,18 +99,28 @@ class Receiver(nn.Module):
         # # else:
         # #     self.lin2 = nn.Linear(vocab_size, embedding_size, bias=False)
         # self.lin2 = nn.Linear(hidden_size, embedding_size, bias=False)
-
+        self.lin1 = nn.Linear((feat_size*game_size)+1, embedding_size, bias=False)
+        self.lin2 = nn.Linear(embedding_size, game_size)
+        print(f'lin1 size: {self.lin1.weight.size()}')
 
     def forward(self, signal, x, _aux_input=None):
         # embed each image (left or right)
         # print(f'x shape in receiver: {x.shape}')
         # print(f'signal shape in receiver: {signal.shape}')
         msgs = signal[:,0]
-        print(f"msgs in receiver: {msgs}")
-        print(f'indices {torch.arange(len(msgs)), msgs}')
-        ith_feature = x[torch.arange(len(msgs)),:, msgs].requires_grad_(True)
-        print(f'ith_feature in receiver: {ith_feature}')
-        logits = ith_feature*20
+        # print(f"msgs in receiver: {msgs}")
+        # print(f'indices {torch.arange(len(msgs)), msgs}')
+        # ith_feature = x[torch.arange(len(msgs)),:, msgs].requires_grad_(True)
+        # print(f'ith_feature in receiver: {ith_feature}')
+        # logits = ith_feature*20
+        # print(msgs.shape)
+        B, G, F = x.shape
+        x_flat = x.reshape(B, G * F)
+        combined = torch.cat([x_flat, msgs.unsqueeze(-1)], dim=-1)
+
+        x = self.lin1(combined)
+        x = torch.relu(x)
+        logits = self.lin2(x)
 
         # print(ith_feature.requires_grad)
         # logits = (x[torch.arange(len(signal[:,0])), :, signal[:,0]] == 1).nonzero(as_tuple=False)[:, 1]*3
@@ -148,7 +158,7 @@ class Receiver(nn.Module):
         # # return out, logprob, entropy
 
         # print("Receiver logits shape:", logits.shape)
-        print(f'logits in receiver: {logits}')
+        # print(f'logits in receiver: {logits}')
         dist = torch.distributions.Categorical(logits=logits)
         sample = dist.sample()                   # (batch,)
         entropy = dist.entropy()                 # (batch,)

@@ -675,12 +675,12 @@ class CommunicationRnnReinforce(nn.Module):
             aux=aux_info,
         )
 
-        print(f"Sender input: {interaction.sender_input}")
-        print(f"Labels: {interaction.labels}")
-        print(f"Message: {interaction.message}")
-        print(f'Receiver input: {interaction.receiver_input}')
-        print(f"Receiver output: {interaction.receiver_output}")
-        print('-----')
+        # print(f"Sender input: {interaction.sender_input}")
+        # print(f"Labels: {interaction.labels}")
+        # print(f"Message: {interaction.message}")
+        # print(f'Receiver input: {interaction.receiver_input}')
+        # print(f"Receiver output: {interaction.receiver_output}")
+        # print('-----')
         return optimized_loss, interaction
 
 
