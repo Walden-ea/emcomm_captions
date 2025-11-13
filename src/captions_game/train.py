@@ -112,8 +112,8 @@ def get_game(opt):
             sender,
             receiver,
             loss,
-            sender_entropy_coeff=0.05,
-            receiver_entropy_coeff=0.05,
+            sender_entropy_coeff=0.02,
+            receiver_entropy_coeff=0.02,
         )
     elif opts.mode == "gs":
         sender = core.RnnSenderGS(sender, temperature=opt.gs_tau)

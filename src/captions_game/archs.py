@@ -99,7 +99,7 @@ class Receiver(nn.Module):
         # # else:
         # #     self.lin2 = nn.Linear(vocab_size, embedding_size, bias=False)
         # self.lin2 = nn.Linear(hidden_size, embedding_size, bias=False)
-        self.lin1 = nn.Linear((feat_size*game_size)+1, embedding_size, bias=False)
+        self.lin1 = nn.Linear((feat_size*game_size)+hidden_size, embedding_size, bias=False)
         self.lin2 = nn.Linear(embedding_size, game_size)
         print(f'lin1 size: {self.lin1.weight.size()}')
 
@@ -107,7 +107,7 @@ class Receiver(nn.Module):
         # embed each image (left or right)
         # print(f'x shape in receiver: {x.shape}')
         # print(f'signal shape in receiver: {signal.shape}')
-        msgs = signal[:,0]
+        msgs = signal
         # print(f"msgs in receiver: {msgs}")
         # print(f'indices {torch.arange(len(msgs)), msgs}')
         # ith_feature = x[torch.arange(len(msgs)),:, msgs].requires_grad_(True)
@@ -116,7 +116,9 @@ class Receiver(nn.Module):
         # print(msgs.shape)
         B, G, F = x.shape
         x_flat = x.reshape(B, G * F)
-        combined = torch.cat([x_flat, msgs.unsqueeze(-1)], dim=-1)
+        # print(f"x_flat shape: {x_flat.shape}")
+        # print(f"msgs unsqueezed shape: {msgs.shape}")
+        combined = torch.cat([x_flat, msgs], dim=-1)
 
         x = self.lin1(combined)
         x = torch.relu(x)

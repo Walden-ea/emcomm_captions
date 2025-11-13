@@ -366,15 +366,19 @@ class RnnReceiverReinforce(nn.Module):
         super(RnnReceiverReinforce, self).__init__()
         self.agent = agent
         self.encoder = RnnEncoder(vocab_size, embed_dim, hidden_size, cell, num_layers)
+        # self.encoder = nn.Linear(1, hidden_size)
 
     def forward(self, message, input=None, aux_input=None, lengths=None):
         #print('msg shape:', message.shape)
         #print(message)
         # print('message shape: ', message.shape)
         # print('lengths: ', lengths)
+        # message = message[:, :-1]#.float()
+        # print('message shape: ', message.shape)
+        encoded = self.encoder(message)
         # encoded = self.encoder(message, lengths)
-        encoded = message
-        #print('encoded:', encoded.shape)
+        # encoded = message
+        # print('encoded:', encoded.shape)
 
         # print('encoded shape: ', encoded.shape)
         # print('input shape: ', input.shape)
