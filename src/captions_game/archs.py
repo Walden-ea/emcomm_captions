@@ -25,6 +25,8 @@ class InformedSender(nn.Module):
         self.vocab_size = vocab_size
         self.temp = temp
 
+        self.lin1 = nn.Linear(feat_size, 3, bias=False)
+        self.lin2 = nn.Linear(3, vocab_size)
         # self.lin1 = nn.Linear(feat_size, embedding_size, bias=False)
         # self.conv2 = nn.Conv2d(
         #     1,
@@ -63,27 +65,36 @@ class InformedSender(nn.Module):
         # print(f'x shape: {x.shape}')
         # print("Sender logits shape:", logits.shape)
         # print('the hardcoded logits shape:', x[:, 0, :].shape)
-        logits = x[:, 0, :]*20
+        # logits = x[:, 0, :]*20
+        # B, G, F = x.shape
+        # x_flat = x.reshape(B, G * F)
+        x_first_image = x[:, 0, :]*20
+        x = self.lin1(x_first_image)
+        # # logits = x
+        x = torch.relu(x)
+        logits = self.lin2(x)
+        # # logits = x_first_image
         return logits
+        # return x_first_image 
         # return h
 
-    def return_embeddings(self, x):
-        # embed each image (left or right)
-        embs = []
-        for i in range(self.game_size):
-            h = x[i]
-            if len(h.size()) == 3:
-                h = h.squeeze(dim=-1)
-            h_i = self.lin1(h)
-            # h_i are batch_size x embedding_size
-            h_i = h_i.unsqueeze(dim=1)
-            h_i = h_i.unsqueeze(dim=1)
-            # h_i are now batch_size x 1 x 1 x embedding_size
-            embs.append(h_i)
-        # concatenate the embeddings
-        h = torch.cat(embs, dim=2)
+    # def return_embeddings(self, x):
+    #     # embed each image (left or right)
+    #     embs = []
+    #     for i in range(self.game_size):
+    #         h = x[i]
+    #         if len(h.size()) == 3:
+    #             h = h.squeeze(dim=-1)
+    #         h_i = self.lin1(h)
+    #         # h_i are batch_size x embedding_size
+    #         h_i = h_i.unsqueeze(dim=1)
+    #         h_i = h_i.unsqueeze(dim=1)
+    #         # h_i are now batch_size x 1 x 1 x embedding_size
+    #         embs.append(h_i)
+    #     # concatenate the embeddings
+    #     h = torch.cat(embs, dim=2)
 
-        return h
+    #     return h
 
 
 class Receiver(nn.Module):
@@ -101,7 +112,7 @@ class Receiver(nn.Module):
         # self.lin2 = nn.Linear(hidden_size, embedding_size, bias=False)
         self.lin1 = nn.Linear((feat_size*game_size)+hidden_size, embedding_size, bias=False)
         self.lin2 = nn.Linear(embedding_size, game_size)
-        print(f'lin1 size: {self.lin1.weight.size()}')
+        # print(f'lin1 size: {self.lin1.weight.size()}')
 
     def forward(self, signal, x, _aux_input=None):
         # embed each image (left or right)
