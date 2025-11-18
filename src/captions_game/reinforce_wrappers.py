@@ -326,7 +326,8 @@ class RnnSenderReinforce(nn.Module):
                 prev_hidden[i] = h_t
                 input = h_t
 
-            step_logits = F.log_softmax(self.hidden_to_output(h_t), dim=1)
+            # step_logits = F.log_softmax(self.hidden_to_output(h_t), dim=1)
+            step_logits = self.hidden_to_output(h_t)
             distr = Categorical(logits=step_logits)
             entropy.append(distr.entropy())
 
@@ -580,30 +581,33 @@ class CommunicationRnnReinforce(nn.Module):
     ):
         ##print(sender_input.shape)
         ##print(sender)
-        # message, log_prob_s, entropy_s = sender(sender_input, aux_input)
-        message, sender_log_prob, sender_entropy = sender(sender_input, aux_input)
+        message, log_prob_s, entropy_s = sender(sender_input, aux_input)
+        # message, sender_log_prob, sender_entropy = sender(sender_input, aux_input)
 
-        zeros = torch.zeros((message.size(0), 1)).to(message.device)
+        # zeros = torch.zeros((message.size(0), 1)).to(message.device)
 
-        message = torch.cat([message.unsqueeze(-1), zeros.long()], dim=1)
-        sender_log_prob = torch.cat([sender_log_prob.unsqueeze(-1), zeros], dim=1)
-        sender_entropy = torch.cat([sender_entropy.unsqueeze(-1), zeros], dim=1)
-        entropy_s = sender_entropy
-        # print('ZEROS HANDLED')
-        # print("message after eos handling:", message)
-        # print("Sender log_prob after eos handling:", sender_log_prob)
-        # print("Sender entropy after eos handling:", sender_entropy)
+        # message = torch.cat([message.unsqueeze(-1), zeros.long()], dim=1)
+        # sender_log_prob = torch.cat([sender_log_prob.unsqueeze(-1), zeros], dim=1)
+        # sender_entropy = torch.cat([sender_entropy.unsqueeze(-1), zeros], dim=1)
+        # entropy_s = sender_entropy
+        # # print('ZEROS HANDLED')
+        # # print("message after eos handling:", message)
+        # # print("Sender log_prob after eos handling:", sender_log_prob)
+        # # print("Sender entropy after eos handling:", sender_entropy)
 
 
-        ##print("message shape:", message.shape)
-        #print("Sender log_prob shape:", log_prob_s.shape)
+        # ##print("message shape:", message.shape)
+        # #print("Sender log_prob shape:", log_prob_s.shape)
         message_length = find_lengths(message)
-        # message_length = torch.ones(zeros.shape[0]).long() * 2#torch.tensor([2])
-        # print('message_length: ', message_length)
+        # # message_length = torch.ones(zeros.shape[0]).long() * 2#torch.tensor([2])
+        # # print('message_length: ', message_length)
 
-        # print('message: ', message)
-        # print('reciever input: ', receiver_input)
-        # print('aux input: ', aux_input)
+        # # print('message: ', message)
+        # # print('reciever input: ', receiver_input)
+        # # print('aux input: ', aux_input)
+
+
+
         receiver_output, log_prob_r, entropy_r = receiver(
             message, receiver_input, aux_input, message_length
         )
@@ -626,7 +630,7 @@ class CommunicationRnnReinforce(nn.Module):
             #print(f"log_prob_s[:, {i}].shape: {log_prob_s[:, i].shape}")
             #print(f"not_eosed.shape: {not_eosed.shape}")
             #print(f"effective_log_prob_s before adding: {effective_log_prob_s.shape}")
-            effective_log_prob_s += sender_log_prob[:, i] * not_eosed
+            effective_log_prob_s += log_prob_s[:, i] * not_eosed
         effective_entropy_s = effective_entropy_s / message_length.float()
         
 

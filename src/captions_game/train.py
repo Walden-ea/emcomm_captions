@@ -105,8 +105,8 @@ def get_game(opt):
         reinforce=(opts.mode == "rf"),
     )
     if opts.mode == "rf":
-        # sender = RnnSenderReinforce(sender, opt.vocab_size, opt.embedding_size, hidden_size=opt.hidden_size, max_len=opts.max_len)
-        sender = core.ReinforceWrapper(sender)
+        sender = RnnSenderReinforce(sender, opt.vocab_size, opt.embedding_size, hidden_size=opt.hidden_size, max_len=opts.max_len)
+        # sender = core.ReinforceWrapper(sender)
         receiver = RnnReceiverReinforce(receiver, opt.vocab_size, opt.embedding_size, opt.hidden_size)
         game = SenderReceiverRnnReinforce(
             sender,
