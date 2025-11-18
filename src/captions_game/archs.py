@@ -25,7 +25,7 @@ class InformedSender(nn.Module):
         self.vocab_size = vocab_size
         self.temp = temp
 
-        self.lin1 = nn.Linear(feat_size, 3, bias=False)
+        self.lin1 = nn.Linear(feat_size*game_size, 3, bias=False)
         self.lin2 = nn.Linear(3, vocab_size)
         # self.lin1 = nn.Linear(feat_size, embedding_size, bias=False)
         # self.conv2 = nn.Conv2d(
@@ -66,9 +66,10 @@ class InformedSender(nn.Module):
         # print("Sender logits shape:", logits.shape)
         # print('the hardcoded logits shape:', x[:, 0, :].shape)
         # logits = x[:, 0, :]*20
-        # B, G, F = x.shape
+        B, G, F = x.shape
         # x_flat = x.reshape(B, G * F)
-        x_first_image = x[:, 0, :]*20
+        x_first_image = x.reshape(B, G * F)*20#[:, 0, :]*20
+        # print(f'x_first_image shape: {x_first_image.shape}')
         x = self.lin1(x_first_image)
         # # logits = x
         x = torch.relu(x)
