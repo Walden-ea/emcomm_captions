@@ -88,7 +88,7 @@ def loss_nll(
 
 
 def get_game(opt):
-    feat_size = 5#1000#4096
+    feat_size = 3#1000#4096
     sender = InformedSender(
         opt.game_size,
         feat_size,
@@ -105,6 +105,7 @@ def get_game(opt):
         reinforce=(opts.mode == "rf"),
     )
     if opts.mode == "rf":
+        print(opt.hidden_size)
         sender = RnnSenderReinforce(sender, opt.vocab_size, opt.embedding_size, hidden_size=opt.hidden_size, max_len=opts.max_len)
         # sender = core.ReinforceWrapper(sender)
         receiver = RnnReceiverReinforce(receiver, opt.vocab_size, opt.embedding_size, opt.hidden_size)
@@ -112,8 +113,8 @@ def get_game(opt):
             sender,
             receiver,
             loss,
-            sender_entropy_coeff=0.02,
-            receiver_entropy_coeff=0.02,
+            sender_entropy_coeff=0.00,
+            receiver_entropy_coeff=0.00,
         )
     elif opts.mode == "gs":
         sender = core.RnnSenderGS(sender, temperature=opt.gs_tau)
@@ -137,7 +138,7 @@ if __name__ == "__main__":
     # "features": [[float(i)] for i in range(5)]  # 1D feature = index
     # }
 
-    n = 5
+    n = 3
     data = {
         "captions": [""] * n,
         "features": [np.eye(n)[i].tolist() for i in range(n)]  # one-hot vectors

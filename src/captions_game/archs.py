@@ -25,8 +25,8 @@ class InformedSender(nn.Module):
         self.vocab_size = vocab_size
         self.temp = temp
 
-        self.lin1 = nn.Linear(feat_size*game_size, vocab_size, bias=False)
-        self.lin2 = nn.Linear(3, vocab_size)
+        self.lin1 = nn.Linear(feat_size*game_size, hidden_size, bias=False)
+        # self.lin2 = nn.Linear(3, hidden_size)
         # self.lin1 = nn.Linear(feat_size, embedding_size, bias=False)
         # self.conv2 = nn.Conv2d(
         #     1,

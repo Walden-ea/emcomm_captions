@@ -289,7 +289,7 @@ class RnnSenderReinforce(nn.Module):
                 for i in range(self.num_layers)
             ]
         )  # noqa: E502
-        ##print(f"RNN cell hidden size: {hidden_size}")
+        # print(f"RNN cell hidden size: {hidden_size}")
         self.reset_parameters()
 
     def reset_parameters(self):
