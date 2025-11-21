@@ -86,9 +86,12 @@ def loss_nll(
     acc = (labels == receiver_output.argmax(dim=1)).float().mean()
     return nll, {"acc": acc}
 
+def trim(batch):
+    batch["features"] = [f[:5] for f in batch["features"]]
+    return batch
 
 def get_game(opt):
-    feat_size = 3#1000#4096
+    feat_size = 5#4096
     sender = InformedSender(
         opt.game_size,
         feat_size,
@@ -113,8 +116,8 @@ def get_game(opt):
             sender,
             receiver,
             loss,
-            sender_entropy_coeff=0.00,
-            receiver_entropy_coeff=0.00,
+            sender_entropy_coeff=0.04,
+            receiver_entropy_coeff=0.04,
         )
     elif opts.mode == "gs":
         sender = core.RnnSenderGS(sender, temperature=opt.gs_tau)
@@ -131,22 +134,23 @@ if __name__ == "__main__":
     opts = parse_arguments()
     # data_folder = os.path.join(opts.root, "train/")
     # dataset = load_from_disk(data_folder)
-    # dataset = load_from_disk(opts.root).select(range(5))
+    dataset = load_from_disk(opts.root).select(range(10))
+    dataset = dataset.map(trim, batched=True)
 
     # data = {
     # "captions": [""] * 5,              # empty captions
     # "features": [[float(i)] for i in range(5)]  # 1D feature = index
     # }
 
-    n = 3
-    data = {
-        "captions": [""] * n,
-        "features": [np.eye(n)[i].tolist() for i in range(n)]  # one-hot vectors
-    }
+    # n = 5
+    # data = {
+    #     "captions": [""] * n,
+    #     "features": [np.eye(n)[i].tolist() for i in range(n)]  # one-hot vectors
+    # }
 
 
 
-    dataset = Dataset.from_dict(data)
+    # dataset = Dataset.from_dict(data)
     # print(dataset)
     # print(dataset['features'])
     # exit(0)

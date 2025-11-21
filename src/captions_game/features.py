@@ -41,13 +41,13 @@ class _BatchIterator:
         loader = self.loader
         opt = loader.opt
 
-        # images_indexes_sender = self.random_state.choice(
-        #     len(loader.dataset), (opt.batch_size, opt.game_size), replace=False
-        # )
-        images_indexes_sender = np.stack([
-        self.random_state.choice(len(loader.dataset), opt.game_size, replace=False)
-        for _ in range(opt.batch_size)
-        ])
+        images_indexes_sender = self.random_state.choice(
+            len(loader.dataset), (opt.batch_size, opt.game_size), replace=False
+        )
+        # images_indexes_sender = np.stack([
+        # self.random_state.choice(len(loader.dataset), opt.game_size, replace=False)
+        # for _ in range(opt.batch_size)
+        # ])
         images_vectors_sender = []
         for i in range(opt.game_size):
             x = torch.tensor(loader.dataset['features'][images_indexes_sender[:, i]])
