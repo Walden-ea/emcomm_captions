@@ -154,7 +154,7 @@ class VectorsLoader:
             self.train_samples >= self.batch_size
             and self.validation_samples >= self.batch_size
             and self.test_samples >= self.batch_size
-        ), "Batch size cannot be smaller than any split size"
+        ), f"Batch size cannot be smaller than any split size"
 
         train_dataset = TupleDataset(*train)
         valid_dataset = TupleDataset(*valid)
