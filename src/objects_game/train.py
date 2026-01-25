@@ -8,7 +8,7 @@ from __future__ import print_function
 import argparse
 import operator
 import pathlib
-import os
+import os, glob
 
 import numpy as np
 import torch.nn.functional as F
@@ -232,6 +232,32 @@ def loss(
     loss = F.cross_entropy(receiver_output, _labels, reduction="none")
     return loss, {"acc": acc}
 
+class BestAndLastCheckpoint(core.Callback):
+    def __init__(self, path="checkpoints"):
+        self.path = path
+        self.best_loss = float("inf")
+        os.makedirs(path, exist_ok=True)
+
+    def _remove(self, pattern):
+        for f in glob.glob(os.path.join(self.path, pattern)):
+            os.remove(f)
+
+    def on_validation_end(self, loss, logs, epoch):
+        # keep only one "last"
+        self._remove("last_epoch_*.pt")
+        torch.save(
+            self.trainer.game.state_dict(),
+            f"{self.path}/last_epoch_{epoch}.pt"
+        )
+
+        # keep only one "best"
+        if loss < self.best_loss:
+            self.best_loss = loss
+            self._remove("best_epoch_*.pt")
+            torch.save(
+                self.trainer.game.state_dict(),
+                f"{self.path}/best_epoch_{epoch}.pt"
+            )
 
 def main(params):
     opts = get_params(params)
@@ -250,8 +276,14 @@ def main(params):
         load_data_path=opts.load_data_path,
         seed=opts.data_seed,
     )
-
     train_data, validation_data, test_data = data_loader.get_iterators()
+
+    # for batch in train_data:
+    #     print(len(batch))
+    #     print(f"Example batch shape: {batch[0].shape}")
+    #     print(f"Example batch labels: {batch[1].shape}")
+    #     print(f"Example batch sths: {batch[2].shape}")
+    #     break
 
     data_loader.upd_cl_options(opts)
 
@@ -304,17 +336,20 @@ def main(params):
             {"params": game.receiver.parameters(), "lr": opts.receiver_lr},
         ]
     )
-    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-        optimizer,
-        mode="min",
-        factor=0.99,
-        patience=20,
-    )
-    class PlateauCallback(core.Callback):
-        def on_validation_end(self, loss, logs, epoch):
-            scheduler.step(loss)
+    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+    #     optimizer,
+    #     mode="min",
+    #     factor=0.99,
+    #     patience=20,
+    # )
+    # class PlateauCallback(core.Callback):
+    #     def on_validation_end(self, loss, logs, epoch):
+    #         scheduler.step(loss)
     
-    callbacks = [core.ConsoleLogger(as_json=True)]#,  PlateauCallback()]
+    callbacks = [
+        core.ConsoleLogger(as_json=True),
+        BestAndLastCheckpoint("checkpoints"),
+        ]#,  PlateauCallback()]
     if opts.mode.lower() == "gs":
         callbacks.append(core.TemperatureUpdater(agent=sender, decay=0.9, minimum=0.1))
     trainer = core.Trainer(
@@ -359,10 +394,12 @@ def main(params):
 
         print(f"| Accuracy on test set: {accuracy}")
 
-        compute_mi_input_msgs(sender_inputs, messages)
+        # compute_mi_input_msgs(sender_inputs, messages)
 
         print(f"entropy sender inputs {entropy(sender_inputs)}")
         print(f"mi sender inputs msgs {mutual_info(sender_inputs, messages)}")
+        # print('shape of sender inputs and messages:')
+        # print(np.ndarray(sender_inputs).shape)
 
         if opts.dump_msg_folder:
             opts.dump_msg_folder.mkdir(exist_ok=True)
