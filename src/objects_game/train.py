@@ -8,6 +8,7 @@ from __future__ import print_function
 import argparse
 import operator
 import pathlib
+import os
 
 import numpy as np
 import torch.nn.functional as F
@@ -303,7 +304,17 @@ def main(params):
             {"params": game.receiver.parameters(), "lr": opts.receiver_lr},
         ]
     )
-    callbacks = [core.ConsoleLogger(as_json=True)]
+    scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
+        optimizer,
+        mode="min",
+        factor=0.99,
+        patience=20,
+    )
+    class PlateauCallback(core.Callback):
+        def on_validation_end(self, loss, logs, epoch):
+            scheduler.step(loss)
+    
+    callbacks = [core.ConsoleLogger(as_json=True)]#,  PlateauCallback()]
     if opts.mode.lower() == "gs":
         callbacks.append(core.TemperatureUpdater(agent=sender, decay=0.9, minimum=0.1))
     trainer = core.Trainer(
@@ -358,7 +369,7 @@ def main(params):
             msg_dict = {}
 
             output_msg = (
-                f"messages_{opts.perceptual_dimensions}_vocab_{opts.vocab_size}"
+                f"data_path_{os.path.basename(opts.load_data_path)}_vocab_{opts.vocab_size}"
                 f"_maxlen_{opts.max_len}_bsize_{opts.batch_size}"
                 f"_n_distractors_{opts.n_distractors}_train_size_{opts.train_samples}"
                 f"_valid_size_{opts.validation_samples}_test_size_{opts.test_samples}"
