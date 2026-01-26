@@ -18,6 +18,7 @@ import egg.core as core
 from egg.core.util import move_to
 from src.objects_game.archs import Receiver, Sender
 from src.objects_game.features import VectorsLoader
+from src.objects_game.trainers import Trainer
 from src.objects_game.util import (
     compute_baseline_accuracy,
     compute_mi_input_msgs,
@@ -178,6 +179,16 @@ def get_params(params):
         action="store_true",
         default=False,
         help="Run egg/objects_game with pdb enabled",
+    )
+    parser.add_argument(
+        "--wandb",
+        action="store_true",
+        help="Logging to wandb",
+    )
+    parser.add_argument(
+        "--wandb_name",
+        type=str,
+        help="Optional wandb run name",
     )
 
     args = core.init(parser, params)
@@ -352,12 +363,13 @@ def main(params):
         ]#,  PlateauCallback()]
     if opts.mode.lower() == "gs":
         callbacks.append(core.TemperatureUpdater(agent=sender, decay=0.9, minimum=0.1))
-    trainer = core.Trainer(
+    trainer = Trainer(
         game=game,
         optimizer=optimizer,
         train_data=train_data,
         validation_data=validation_data,
         callbacks=callbacks,
+        opts=opts
     )
     trainer.train(n_epochs=opts.n_epochs)
 
