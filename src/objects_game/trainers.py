@@ -139,8 +139,11 @@ class Trainer(CoreTrainer):
             grad_norm,
             aggregate_interaction_logs,
         )
-        common_opts = get_opts()
 
+        common_opts = get_opts()
+        self.opts = opts
+        self.common_opts = common_opts
+        
         if self.distributed_context.is_leader and common_opts.wandb:
             # assert (
             #     common_opts.tensorboard_dir

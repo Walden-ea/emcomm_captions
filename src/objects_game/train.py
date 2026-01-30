@@ -252,12 +252,22 @@ class BestAndLastCheckpoint(core.Callback):
     def _remove(self, pattern):
         for f in glob.glob(os.path.join(self.path, pattern)):
             os.remove(f)
+    
+    def _checkpoint(self, epoch):
+        return {
+            "epoch": epoch,
+            "sender": self.trainer.game.sender.state_dict(),
+            "receiver": self.trainer.game.receiver.state_dict(),
+            "optimizer": self.trainer.optimizer.state_dict(),
+            "opts": vars(self.trainer.opts),
+            "common_opts": vars(self.trainer.common_opts),
+        }
 
     def on_validation_end(self, loss, logs, epoch):
         # keep only one "last"
         self._remove("last_epoch_*.pt")
         torch.save(
-            self.trainer.game.state_dict(),
+            self._checkpoint(epoch),
             f"{self.path}/last_epoch_{epoch}.pt"
         )
 
@@ -266,7 +276,7 @@ class BestAndLastCheckpoint(core.Callback):
             self.best_loss = loss
             self._remove("best_epoch_*.pt")
             torch.save(
-                self.trainer.game.state_dict(),
+                self._checkpoint(epoch),
                 f"{self.path}/best_epoch_{epoch}.pt"
             )
 
@@ -359,7 +369,7 @@ def main(params):
     
     callbacks = [
         core.ConsoleLogger(as_json=True),
-        BestAndLastCheckpoint("checkpoints"),
+        BestAndLastCheckpoint("checkpoints/full_game"),
         ]#,  PlateauCallback()]
     if opts.mode.lower() == "gs":
         callbacks.append(core.TemperatureUpdater(agent=sender, decay=0.9, minimum=0.1))
