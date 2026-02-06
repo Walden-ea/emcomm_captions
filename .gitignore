@@ -208,6 +208,7 @@ __marimo__/
 
 
 # logging
-logs/
+*logs/
 wandb/
 runs/
+*.pt
