@@ -16,10 +16,10 @@ import torch.utils.data
 
 import egg.core as core
 from egg.core.util import move_to
-from src.objects_game.archs import Receiver, Sender
-from src.objects_game.features import VectorsLoader
-from src.objects_game.trainers import Trainer
-from src.objects_game.util import (
+from src.objects_game.src.archs import Receiver, Sender
+from src.objects_game.src.features import VectorsLoader
+from src.objects_game.src.trainers import Trainer
+from src.objects_game.src.util import (
     compute_baseline_accuracy,
     compute_mi_input_msgs,
     dump_sender_receiver,

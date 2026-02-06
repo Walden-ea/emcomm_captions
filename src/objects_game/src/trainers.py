@@ -49,11 +49,6 @@ from egg.core.util import get_summary_writer
 # from .distributed import get_preemptive_checkpoint_dir
 # from .interaction import Interaction
 from egg.core.util import get_opts, move_to
-
-# try:
-#     from torch.cuda.amp import GradScaler, autocast
-# except ImportError:
-#     pass
 from egg.core.trainers import Trainer as CoreTrainer
 
 class WandbLogger(CoreWandbLogger):
