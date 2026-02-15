@@ -3,6 +3,7 @@ Hyperparameter optimization for translation model using Optuna.
 
 Example usage:
     python hpo_translation.py --n_trials 20 --hpo_outdir ./hpo_results
+    python hpo_translation.py --n_trials 20 --model_type transformer
 """
 
 import argparse
@@ -20,6 +21,9 @@ import torch
 
 from src.objects_game.train_translation import main, get_tokenizer_and_pad
 from datasets import load_from_disk
+
+# Global variable to store model type (can be set from command line args)
+_MODEL_TYPE = "rnn"
 
 
 def create_trial_args(trial, base_args):
@@ -43,6 +47,10 @@ def create_trial_args(trial, base_args):
     # Dropout (log scale) - more likely to sample smaller values
     base_args.dropout = trial.suggest_float("dropout", 0.0, 0.5, log=False)
     
+    # Number of heads for transformer (if applicable)
+    if base_args.model_type == "transformer":
+        base_args.num_heads = trial.suggest_categorical("num_heads", [4, 8, 16])
+    
     # Batch size (powers of 2)
     # base_args.batch_size = trial.suggest_categorical("batch_size", [32, 64, 128, 256])
     
@@ -56,6 +64,7 @@ def create_trial_args(trial, base_args):
 
 def objective(trial):
     """Optuna objective function for hyperparameter search."""
+    global _MODEL_TYPE
     
     # Set random seeds for reproducibility (passed via global or use trial seed for variation)
     seed = 42 + trial.number  # Each trial gets a different seed for diversity
@@ -71,6 +80,7 @@ def objective(trial):
     parser.add_argument("--train_dataset_path", type=str, default="../datasets/coco_train_msg_captions")
     parser.add_argument("--val_dataset_path", type=str, default="../datasets/coco_val_msg_captions")
     parser.add_argument("--checkpoint_path", type=str, default=None)
+    parser.add_argument("--model_type", type=str, default=_MODEL_TYPE, choices=["rnn", "transformer"])
     parser.add_argument("--src_vocab_size", type=int, default=71)
     parser.add_argument("--enc_num_layers", type=int, default=2)
     parser.add_argument("--dec_num_layers", type=int, default=2)
@@ -84,6 +94,7 @@ def objective(trial):
     parser.add_argument("--lr_dec", type=float, default=1e-3)
     parser.add_argument("--emb_dim", type=int, default=256)
     parser.add_argument("--hid_dim", type=int, default=512)
+    parser.add_argument("--num_heads", type=int, default=8)
     parser.add_argument("--batch_size", type=int, default=512)
     parser.add_argument("--dropout", type=float, default=0.0)
     parser.add_argument("--patience", type=int, default=10)
@@ -112,6 +123,10 @@ def objective(trial):
 
 def main_hpo(args):
     """Run hyperparameter optimization."""
+    global _MODEL_TYPE
+    
+    # Set global model type
+    _MODEL_TYPE = args.model_type
     
     # Create output directory
     os.makedirs(args.hpo_outdir, exist_ok=True)
@@ -128,6 +143,7 @@ def main_hpo(args):
     logger = logging.getLogger(__name__)
     
     logger.info(f"Starting HPO with {args.n_trials} trials")
+    logger.info(f"Model type: {args.model_type}")
     logger.info(f"Results will be saved to {args.hpo_outdir}")
     
     # Create study
@@ -163,6 +179,7 @@ def main_hpo(args):
     with open(os.path.join(args.hpo_outdir, "best_params.txt"), "w") as f:
         f.write(f"Best trial: {study.best_trial.number}\n")
         f.write(f"Best loss: {study.best_value:.4f}\n")
+        f.write(f"Model type: {args.model_type}\n")
         f.write("Best hyperparameters:\n")
         for key, val in study.best_params.items():
             f.write(f"  {key}: {val}\n")
@@ -178,6 +195,11 @@ if __name__ == "__main__":
                         help="Directory to save HPO results")
     parser.add_argument("--seed", type=int, default=42,
                         help="Random seed for reproducibility")
+    parser.add_argument("--model_type", type=str, default="rnn", choices=["rnn", "transformer"],
+                        help="Model architecture: 'rnn' for LSTM or 'transformer' for Transformer")
     
     args = parser.parse_args()
+    
+    # Store model_type in a global or pass it to objective somehow
+    # For now, we'll update the objective function to read it from args
     study = main_hpo(args)

@@ -11,6 +11,7 @@ import pathlib
 import os, glob
 
 import numpy as np
+import torch
 import torch.nn.functional as F
 import torch.utils.data
 
@@ -369,10 +370,18 @@ def main(params):
     
     callbacks = [
         core.ConsoleLogger(as_json=True),
-        BestAndLastCheckpoint("checkpoints/full_game"),
+        BestAndLastCheckpoint(f"checkpoints/full_game_more_distractors"),
         ]#,  PlateauCallback()]
     if opts.mode.lower() == "gs":
         callbacks.append(core.TemperatureUpdater(agent=sender, decay=0.9, minimum=0.1))
+    
+    # Track the best checkpoint callback to extract best validation loss
+    best_checkpoint = None
+    for callback in callbacks:
+        if isinstance(callback, BestAndLastCheckpoint):
+            best_checkpoint = callback
+            break
+    
     trainer = Trainer(
         game=game,
         optimizer=optimizer,
@@ -382,6 +391,9 @@ def main(params):
         opts=opts
     )
     trainer.train(n_epochs=opts.n_epochs)
+    
+    # Return best validation loss for HPO
+    best_val_loss = best_checkpoint.best_loss if best_checkpoint else float('inf')
 
     if opts.evaluate:
         is_gs = opts.mode == "gs"
@@ -476,6 +488,8 @@ def main(params):
                 f.write(f"Unique messages produced by sender: {len(msg_dict.keys())}\n")
                 f.write(f"Messagses: 'msg' : msg_count: {str(sorted_msgs)}\n")
                 f.write(f"\nAccuracy: {accuracy}")
+    
+    return best_val_loss
 
 
 if __name__ == "__main__":

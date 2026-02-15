@@ -4,7 +4,9 @@ import random
 import sacrebleu
 import torch
 import torch.nn as nn
-from src.objects_game.src.translation import Decoder, Encoder
+from src.objects_game.src.translation import (
+    Decoder, Encoder, TransformerDecoder, TransformerEncoder
+)
 from torch.nn.utils.rnn import pad_sequence
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
@@ -37,7 +39,7 @@ def collate(batch, pad_id, tokenizer):
 
     return src, tgt
 
-def evaluate(encoder, decoder, loader, criterion, device, tokenizer):
+def evaluate(encoder, decoder, loader, criterion, device, tokenizer, model_type="rnn"):
     encoder.eval()
     decoder.eval()
 
@@ -48,8 +50,12 @@ def evaluate(encoder, decoder, loader, criterion, device, tokenizer):
         for src, tgt in loader:
             src, tgt = src.to(device), tgt.to(device)
 
-            h, c = encoder(src)
-            logits, _, _ = decoder(tgt[:, :-1], h, c)
+            if model_type == "rnn":
+                h, c = encoder(src)
+                logits, _, _ = decoder(tgt[:, :-1], h, c)
+            else:  # transformer
+                encoder_output, _ = encoder(src)
+                logits, _, _ = decoder(tgt[:, :-1], encoder_output)
 
             loss = criterion(
                 logits.reshape(-1, logits.size(-1)),
@@ -93,24 +99,45 @@ def main(args):
     # Load tokenizer
     tgt_tokenizer, tgt_pad_id = get_tokenizer_and_pad()
     
-    # Initialize models
-    encoder = Encoder(
-        vocab_size=args.src_vocab_size,
-        emb_dim=args.emb_dim,
-        hid_dim=args.hid_dim,
-        num_layers=args.enc_num_layers,
-        pad_id=args.pad_id,
-        dropout=args.dropout
-    ).to(device)
+    # Initialize models based on model_type
+    if args.model_type == "rnn":
+        encoder = Encoder(
+            vocab_size=args.src_vocab_size,
+            emb_dim=args.emb_dim,
+            hid_dim=args.hid_dim,
+            num_layers=args.enc_num_layers,
+            pad_id=args.pad_id,
+            dropout=args.dropout
+        ).to(device)
 
-    decoder = Decoder(
-        vocab_size=len(tgt_tokenizer.vocab),
-        emb_dim=args.emb_dim,
-        hid_dim=args.hid_dim,
-        num_layers=args.dec_num_layers,
-        pad_id=tgt_pad_id,
-        dropout=args.dropout
-    ).to(device)
+        decoder = Decoder(
+            vocab_size=len(tgt_tokenizer.vocab),
+            emb_dim=args.emb_dim,
+            hid_dim=args.hid_dim,
+            num_layers=args.dec_num_layers,
+            pad_id=tgt_pad_id,
+            dropout=args.dropout
+        ).to(device)
+    else:  # transformer
+        encoder = TransformerEncoder(
+            vocab_size=args.src_vocab_size,
+            emb_dim=args.emb_dim,
+            hid_dim=args.hid_dim,
+            num_layers=args.enc_num_layers,
+            pad_id=args.pad_id,
+            dropout=args.dropout,
+            num_heads=args.num_heads
+        ).to(device)
+
+        decoder = TransformerDecoder(
+            vocab_size=len(tgt_tokenizer.vocab),
+            emb_dim=args.emb_dim,
+            hid_dim=args.hid_dim,
+            num_layers=args.dec_num_layers,
+            pad_id=tgt_pad_id,
+            dropout=args.dropout,
+            num_heads=args.num_heads
+        ).to(device)
 
     # Load datasets
     dataset = load_from_disk(args.train_dataset_path)
@@ -203,8 +230,12 @@ def main(args):
             enc_opt.zero_grad()
             dec_opt.zero_grad()
 
-            h, c = encoder(src)
-            logits, _, _ = decoder(tgt[:, :-1], h, c)
+            if args.model_type == "rnn":
+                h, c = encoder(src)
+                logits, _, _ = decoder(tgt[:, :-1], h, c)
+            else:  # transformer
+                encoder_output, _ = encoder(src)
+                logits, _, _ = decoder(tgt[:, :-1], encoder_output)
 
             loss = criterion(
                 logits.reshape(-1, logits.size(-1)),
@@ -224,7 +255,7 @@ def main(args):
 
         train_loss = total_loss / len(loader)
         val_loss, val_bleu = evaluate(
-            encoder, decoder, val_loader, criterion, device, tgt_tokenizer
+            encoder, decoder, val_loader, criterion, device, tgt_tokenizer, model_type=args.model_type
         )
         sched_enc.step(val_loss)
         sched_dec.step(val_loss)
@@ -262,7 +293,7 @@ def main(args):
                 break
 
     # Final evaluation on test set
-    test_loss, test_bleu = evaluate(encoder, decoder, test_loader, criterion, device, tgt_tokenizer)
+    test_loss, test_bleu = evaluate(encoder, decoder, test_loader, criterion, device, tgt_tokenizer, model_type=args.model_type)
     
     wandb.log({
         "test/loss": test_loss,
@@ -279,12 +310,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train translation model")
     
     # Dataset paths
-    parser.add_argument("--train_dataset_path", type=str, default="datasets/coco_train_msg_captions",
+    parser.add_argument("--train_dataset_path", type=str, default="../datasets/coco_train_msg_captions",
                         help="Path to training dataset")
-    parser.add_argument("--val_dataset_path", type=str, default="datasets/coco_val_msg_captions",
+    parser.add_argument("--val_dataset_path", type=str, default="../datasets/coco_val_msg_captions",
                         help="Path to validation/test dataset")
     parser.add_argument("--checkpoint_path", type=str, default="best_model.pt",
                         help="Path to save best model checkpoint")
+    
+    # Model type selection
+    parser.add_argument("--model_type", type=str, default="rnn", choices=["rnn", "transformer"],
+                        help="Model architecture: 'rnn' for LSTM or 'transformer' for Transformer")
     
     # Model architecture
     parser.add_argument("--src_vocab_size", type=int, default=71,
@@ -297,6 +332,8 @@ if __name__ == "__main__":
                         help="Number of encoder layers")
     parser.add_argument("--dec_num_layers", type=int, default=2,
                         help="Number of decoder layers")
+    parser.add_argument("--num_heads", type=int, default=8,
+                        help="Number of attention heads (for transformer model)")
     parser.add_argument("--dropout", type=float, default=0.0,
                         help="Dropout rate")
     parser.add_argument("--pad_id", type=int, default=70,
