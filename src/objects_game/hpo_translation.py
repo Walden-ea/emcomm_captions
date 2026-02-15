@@ -7,7 +7,9 @@ Example usage:
 
 import argparse
 import logging
+import numpy as np
 import os
+import random
 import tempfile
 from pathlib import Path
 
@@ -38,11 +40,14 @@ def create_trial_args(trial, base_args):
     base_args.emb_dim = trial.suggest_int("emb_dim", 64, 512, step=64)
     base_args.hid_dim = trial.suggest_int("hid_dim", 128, 1024, step=128)
     
+    # Dropout (log scale) - more likely to sample smaller values
+    base_args.dropout = trial.suggest_float("dropout", 0.0, 0.5, log=False)
+    
     # Batch size (powers of 2)
     # base_args.batch_size = trial.suggest_categorical("batch_size", [32, 64, 128, 256])
     
     # Regularization / early stopping
-    base_args.patience = trial.suggest_int("patience", 5, 20)
+    # base_args.patience = trial.suggest_int("patience", 5, 20)
     base_args.scheduler_patience = trial.suggest_int("scheduler_patience", 5, 30)
     base_args.scheduler_factor = trial.suggest_float("scheduler_factor", 0.5, 0.99)
     
@@ -51,6 +56,15 @@ def create_trial_args(trial, base_args):
 
 def objective(trial):
     """Optuna objective function for hyperparameter search."""
+    
+    # Set random seeds for reproducibility (passed via global or use trial seed for variation)
+    seed = 42 + trial.number  # Each trial gets a different seed for diversity
+    random.seed(seed)
+    np.random.seed(seed)
+    torch.manual_seed(seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(seed)
+        torch.cuda.manual_seed_all(seed)
     
     # Parse base args
     parser = argparse.ArgumentParser(description="Train translation model")
@@ -61,7 +75,7 @@ def objective(trial):
     parser.add_argument("--enc_num_layers", type=int, default=2)
     parser.add_argument("--dec_num_layers", type=int, default=2)
     parser.add_argument("--pad_id", type=int, default=70)
-    parser.add_argument("--num_epochs", type=int, default=1)
+    parser.add_argument("--num_epochs", type=int, default=30)
     parser.add_argument("--wandb_project", type=str, default="EmComm-Caption-Translator")
     parser.add_argument("--wandb_name", type=str, default="")
     
@@ -70,10 +84,12 @@ def objective(trial):
     parser.add_argument("--lr_dec", type=float, default=1e-3)
     parser.add_argument("--emb_dim", type=int, default=256)
     parser.add_argument("--hid_dim", type=int, default=512)
-    parser.add_argument("--batch_size", type=int, default=128)
+    parser.add_argument("--batch_size", type=int, default=512)
+    parser.add_argument("--dropout", type=float, default=0.0)
     parser.add_argument("--patience", type=int, default=10)
-    parser.add_argument("--scheduler_patience", type=int, default=20)
+    parser.add_argument("--scheduler_patience", type=int, default=7)
     parser.add_argument("--scheduler_factor", type=float, default=0.9)
+    parser.add_argument("--seed", type=int, default=seed)
     
     args = parser.parse_args([])
     

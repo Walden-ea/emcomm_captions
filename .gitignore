@@ -212,3 +212,5 @@ __marimo__/
 wandb/
 runs/
 *.pt
+*.csv
+*.txt

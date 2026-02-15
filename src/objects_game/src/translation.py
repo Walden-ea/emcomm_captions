@@ -3,10 +3,10 @@ import torch.nn as nn
 
 
 class Encoder(nn.Module):
-    def __init__(self, vocab_size, emb_dim, hid_dim, num_layers=2, pad_id=None):
+    def __init__(self, vocab_size, emb_dim, hid_dim, num_layers=2, pad_id=None, dropout=0.0):
         super().__init__()
         self.emb = nn.Embedding(vocab_size, emb_dim, padding_idx=pad_id)
-        self.rnn = nn.LSTM(emb_dim, hid_dim, num_layers=num_layers, batch_first=True)
+        self.rnn = nn.LSTM(emb_dim, hid_dim, num_layers=num_layers, batch_first=True, dropout=dropout if num_layers > 1 else 0)
 
     def forward(self, src):
         # src: [B, T]
@@ -16,10 +16,10 @@ class Encoder(nn.Module):
 
 
 class Decoder(nn.Module):
-    def __init__(self, vocab_size, emb_dim, hid_dim, num_layers=2, pad_id=None):
+    def __init__(self, vocab_size, emb_dim, hid_dim, num_layers=2, pad_id=None, dropout=0.0):
         super().__init__()
         self.emb = nn.Embedding(vocab_size, emb_dim, padding_idx=pad_id)
-        self.rnn = nn.LSTM(emb_dim, hid_dim, num_layers=num_layers, batch_first=True)
+        self.rnn = nn.LSTM(emb_dim, hid_dim, num_layers=num_layers, batch_first=True, dropout=dropout if num_layers > 1 else 0)
         self.fc = nn.Linear(hid_dim, vocab_size)
 
     def forward(self, tgt, h, c):

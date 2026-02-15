@@ -1,4 +1,6 @@
 import argparse
+import numpy as np
+import random
 import sacrebleu
 import torch
 import torch.nn as nn
@@ -78,6 +80,14 @@ def evaluate(encoder, decoder, loader, criterion, device, tokenizer):
     return total_loss / len(loader), bleu
 
 def main(args):
+    # Set random seeds for reproducibility
+    random.seed(args.seed)
+    np.random.seed(args.seed)
+    torch.manual_seed(args.seed)
+    if torch.cuda.is_available():
+        torch.cuda.manual_seed(args.seed)
+        torch.cuda.manual_seed_all(args.seed)
+    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     # Load tokenizer
@@ -89,7 +99,8 @@ def main(args):
         emb_dim=args.emb_dim,
         hid_dim=args.hid_dim,
         num_layers=args.enc_num_layers,
-        pad_id=args.pad_id
+        pad_id=args.pad_id,
+        dropout=args.dropout
     ).to(device)
 
     decoder = Decoder(
@@ -97,13 +108,14 @@ def main(args):
         emb_dim=args.emb_dim,
         hid_dim=args.hid_dim,
         num_layers=args.dec_num_layers,
-        pad_id=tgt_pad_id
+        pad_id=tgt_pad_id,
+        dropout=args.dropout
     ).to(device)
 
     # Load datasets
     dataset = load_from_disk(args.train_dataset_path)
     val_test_dataset = load_from_disk(args.val_dataset_path)
-    splits = val_test_dataset.train_test_split(test_size=0.5, seed=42)
+    splits = val_test_dataset.train_test_split(test_size=0.5, seed=args.seed)
     val_dataset = splits["train"]
     test_dataset = splits["test"]
 
@@ -144,6 +156,7 @@ def main(args):
 
     config = {
         "device": str(device),
+        "seed": args.seed,
         "pad_id": args.pad_id,
         "tgt_pad_id": tgt_pad_id,
         "enc_vocab_size": encoder.emb.num_embeddings,
@@ -152,6 +165,7 @@ def main(args):
         "hid_dim": args.hid_dim,
         "enc_num_layers": args.enc_num_layers,
         "dec_num_layers": args.dec_num_layers,
+        "dropout": args.dropout,
         "encoder_pad_idx": encoder.emb.padding_idx,
         "decoder_pad_idx": decoder.emb.padding_idx,
         "batch_size": args.batch_size,
@@ -283,6 +297,8 @@ if __name__ == "__main__":
                         help="Number of encoder layers")
     parser.add_argument("--dec_num_layers", type=int, default=2,
                         help="Number of decoder layers")
+    parser.add_argument("--dropout", type=float, default=0.0,
+                        help="Dropout rate")
     parser.add_argument("--pad_id", type=int, default=70,
                         help="Padding ID for source sequences")
     
@@ -301,6 +317,10 @@ if __name__ == "__main__":
                         help="LR scheduler patience")
     parser.add_argument("--scheduler_factor", type=float, default=0.9,
                         help="LR scheduler decay factor")
+    
+    # Reproducibility
+    parser.add_argument("--seed", type=int, default=42,
+                        help="Random seed for reproducibility")
     
     # Logging
     parser.add_argument("--wandb_project", type=str, default="EmComm-Caption-Translator",
