@@ -1,4 +1,5 @@
 import argparse
+import csv
 import numpy as np
 import random
 import sacrebleu
@@ -40,7 +41,7 @@ def collate(batch, pad_id, tokenizer):
 
     return src, tgt
 
-def evaluate(encoder, decoder, loader, criterion, device, tokenizer, sim_model, model_type="rnn"):
+def evaluate(encoder, decoder, loader, criterion, device, tokenizer, sim_model, model_type="rnn", csv_save_path=None):
     encoder.eval()
     decoder.eval()
 
@@ -78,7 +79,7 @@ def evaluate(encoder, decoder, loader, criterion, device, tokenizer, sim_model, 
                     skip_special_tokens=True
                 )
             )
-
+        
     bleu = sacrebleu.corpus_bleu(
         hyps,
         [refs]
@@ -91,6 +92,11 @@ def evaluate(encoder, decoder, loader, criterion, device, tokenizer, sim_model, 
     # Compute cosine similarity for each pair
     cosine_scores = util.pytorch_cos_sim(hyp_embeddings, ref_embeddings)
     semantic_similarity = torch.diagonal(cosine_scores).mean().item()
+    if csv_save_path is not None:
+        with open(csv_save_path, "w", newline="", encoding="utf-8") as f:
+            writer = csv.writer(f)
+            writer.writerow(["hypothesis", "reference"])
+            writer.writerows(zip(hyps, refs))
 
     return total_loss / len(loader), bleu, semantic_similarity
 
@@ -254,7 +260,15 @@ def main(args):
         encoder.to(device)
         decoder.to(device)
         test_loss, test_bleu, test_semantic_sim = evaluate(
-            encoder, decoder, test_loader, criterion, device, tgt_tokenizer, sim_model, model_type=args.model_type
+            encoder, 
+            decoder, 
+            test_loader, 
+            criterion, 
+            device, 
+            tgt_tokenizer, 
+            sim_model, 
+            model_type=args.model_type,
+            csv_save_path="test_predictions.csv"
         )
         print(f"Test Loss: {test_loss:.4f} | Test BLEU: {test_bleu:.2f} | Test Semantic Similarity: {test_semantic_sim:.4f}")
         return None
