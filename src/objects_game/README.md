@@ -10,7 +10,7 @@ This game is a variant of [1], and we call it the object game because the vector
 
 A picture that describes the architecture of the game can be found [here](pics/archs.jpeg) (the no-image option is not currently implemented).
 
-Example command:
+Example command (legacy CLI interface):
 ```bash
 python -m egg.zoo.objects_game.train \
     --perceptual_dimensions "[4, 4, 4, 4, 4]" \
@@ -30,6 +30,17 @@ python -m egg.zoo.objects_game.train \
     --dump_msg_folder '../messages' \
     --shuffle_train_data
 ```
+
+Nowadays the script prefers a single YAML configuration file.  Create a
+new file (for example `config.yaml`) containing the same set of
+parameters in YAML format and invoke the trainer like this:
+
+```bash
+python -m egg.zoo.objects_game.train config.yaml
+```
+
+The file may omit any fields you do not wish to override; defaults are
+filled automatically.
 
 The basic structure of this game is similar to the one of the [external_game](../external_game/README.md). Please refer to that for game configurations and training hyper-parameters. However, the input is different, as here it consists of discrete-valued vectors where the values that each dimension take can vary and can be specified as a parameter to the game. 
 Additionally, the receiver is shown the target AND a fixed number of distractors and has to point to the position of the target among the randomly shuffled distractors.

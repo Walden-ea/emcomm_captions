@@ -29,8 +29,64 @@ from src.objects_game.src.util import (
 )
 
 
+
+# The original command-line argument machinery is kept around for
+# backwards compatibility (e.g. hyperparameter search routines) but
+# the preferred interface for `train.py` is now a single YAML config
+# file.  The YAML handling logic lives in a separate module so it can
+# be reused by other scripts in the future.
+
 def get_params(params):
+    """Return an argparse.Namespace containing training options.
+
+    ``params`` may be one of the following:
+
+    * a list/tuple of strings: interpreted as command line tokens and
+      parsed exactly as before.  This is what HPO code still passes.
+    * a single string ending in ``.yaml``/``.yml``: the file is
+      loaded and its contents used to populate a namespace.  Missing
+      values are filled with the defaults that the argument parser
+      defines.
+    * an ``argparse.Namespace`` instance: returned unchanged.
+    """
+
+    # allow callers to pass through an already-constructed namespace
+    if isinstance(params, argparse.Namespace):
+        check_args(params)
+        return params
+
+    # if the caller gave us a yaml path, load it and merge with defaults
+    if isinstance(params, (list, tuple)) and len(params) == 1:
+        candidate = params[0]
+        if isinstance(candidate, str) and pathlib.Path(candidate).suffix in (
+            ".yaml", ".yml"
+        ):
+            from src.objects_game.yaml_config import load_yaml_config
+
+            yaml_args = load_yaml_config(candidate)
+            # build a parser just to obtain defaults and then overwrite
+            # them with whatever was present in the yaml file
+            parser = argparse.ArgumentParser()
+            # re‑use the same argument definitions as before
+            _populate_parser(parser)
+            default_args = core.init(parser, [])
+            for k, v in vars(yaml_args).items():
+                setattr(default_args, k, v)
+            check_args(default_args)
+            print(default_args)
+            return default_args
+
+    # fall back to original command-line parsing behavior
     parser = argparse.ArgumentParser()
+    _populate_parser(parser)
+    args = core.init(parser, params)
+    check_args(args)
+    print(args)
+    return args
+
+
+def _populate_parser(parser):
+    """Factor out argument definitions so they can be reused."""
 
     input_data = parser.add_mutually_exclusive_group()
     input_data.add_argument(
@@ -191,13 +247,6 @@ def get_params(params):
         type=str,
         help="Optional wandb run name",
     )
-
-    args = core.init(parser, params)
-
-    check_args(args)
-    print(args)
-
-    return args
 
 
 def check_args(args):
@@ -495,4 +544,9 @@ def main(params):
 if __name__ == "__main__":
     import sys
 
-    main(sys.argv[1:])
+    if len(sys.argv) != 2:
+        print("Usage: python train.py <config.yaml>")
+        sys.exit(1)
+
+    # forward the single path as a list so get_params can handle it
+    main([sys.argv[1]])
