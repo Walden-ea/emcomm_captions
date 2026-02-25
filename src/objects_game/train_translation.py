@@ -12,6 +12,7 @@ from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
 from tqdm import tqdm
 from transformers import AutoTokenizer
+from sentence_transformers import SentenceTransformer, util
 
 from datasets import load_from_disk
 
@@ -39,7 +40,7 @@ def collate(batch, pad_id, tokenizer):
 
     return src, tgt
 
-def evaluate(encoder, decoder, loader, criterion, device, tokenizer, model_type="rnn"):
+def evaluate(encoder, decoder, loader, criterion, device, tokenizer, sim_model, model_type="rnn"):
     encoder.eval()
     decoder.eval()
 
@@ -83,7 +84,15 @@ def evaluate(encoder, decoder, loader, criterion, device, tokenizer, model_type=
         [refs]
     ).score
 
-    return total_loss / len(loader), bleu
+    # Compute semantic similarity
+    hyp_embeddings = sim_model.encode(hyps, convert_to_tensor=True)
+    ref_embeddings = sim_model.encode(refs, convert_to_tensor=True)
+    
+    # Compute cosine similarity for each pair
+    cosine_scores = util.pytorch_cos_sim(hyp_embeddings, ref_embeddings)
+    semantic_similarity = torch.diagonal(cosine_scores).mean().item()
+
+    return total_loss / len(loader), bleu, semantic_similarity
 
 def main(args):
     # Set random seeds for reproducibility
@@ -93,11 +102,14 @@ def main(args):
     if torch.cuda.is_available():
         torch.cuda.manual_seed(args.seed)
         torch.cuda.manual_seed_all(args.seed)
-    
     device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
     
     # Load tokenizer
     tgt_tokenizer, tgt_pad_id = get_tokenizer_and_pad()
+    
+    # Load semantic similarity model
+    sim_model = SentenceTransformer("paraphrase-multilingual-mpnet-base-v2")
+    sim_model.to(device)
     
     # Initialize models based on model_type
     if args.model_type == "rnn":
@@ -139,74 +151,92 @@ def main(args):
             num_heads=args.num_heads
         ).to(device)
 
-    # Load datasets
-    dataset = load_from_disk(args.train_dataset_path)
-    val_test_dataset = load_from_disk(args.val_dataset_path)
-    splits = val_test_dataset.train_test_split(test_size=0.5, seed=args.seed)
-    val_dataset = splits["train"]
-    test_dataset = splits["test"]
+    # If running in test-only mode we don't need training/validation data
+    if args.test_only:
+        if args.test_dataset_path is None:
+            raise ValueError("--test_dataset_path must be specified when using --test_only")
+        test_data = load_from_disk(args.test_dataset_path)
+        test_loader = DataLoader(
+            test_data,
+            batch_size=args.batch_size,
+            shuffle=False,
+            collate_fn=lambda batch: collate(batch, args.pad_id, tgt_tokenizer)
+        )
+    else:
+        # Load datasets for training/validation
+        dataset = load_from_disk(args.train_dataset_path)
+        val_test_dataset = load_from_disk(args.val_dataset_path)
+        splits = val_test_dataset.train_test_split(test_size=0.5, seed=args.seed)
+        val_dataset = splits["train"]
+        test_dataset = splits["test"]
 
-    # Create dataloaders
-    loader = DataLoader(
-        dataset,
-        batch_size=args.batch_size,
-        shuffle=True,
-        collate_fn=lambda batch: collate(batch, args.pad_id, tgt_tokenizer)
-    )
-    val_loader = DataLoader(
-        val_dataset,
-        batch_size=args.batch_size,
-        shuffle=False,
-        collate_fn=lambda batch: collate(batch, args.pad_id, tgt_tokenizer)
-    )
-    test_loader = DataLoader(
-        test_dataset,
-        batch_size=args.batch_size,
-        shuffle=False,
-        collate_fn=lambda batch: collate(batch, args.pad_id, tgt_tokenizer)
-    )
+        # Create dataloaders
+        loader = DataLoader(
+            dataset,
+            batch_size=args.batch_size,
+            shuffle=True,
+            collate_fn=lambda batch: collate(batch, args.pad_id, tgt_tokenizer)
+        )
+        val_loader = DataLoader(
+            val_dataset,
+            batch_size=args.batch_size,
+            shuffle=False,
+            collate_fn=lambda batch: collate(batch, args.pad_id, tgt_tokenizer)
+        )
+        test_loader = DataLoader(
+            test_dataset,
+            batch_size=args.batch_size,
+            shuffle=False,
+            collate_fn=lambda batch: collate(batch, args.pad_id, tgt_tokenizer)
+        )
 
-    # Setup loss and optimizers
+    # Setup loss and optimizers (only needed if training)
     criterion = nn.CrossEntropyLoss(ignore_index=tgt_pad_id)
-    enc_opt = torch.optim.Adam(encoder.parameters(), lr=args.lr_enc)
-    dec_opt = torch.optim.Adam(decoder.parameters(), lr=args.lr_dec)
+    config = {
+    "device": str(device),
+    "seed": args.seed,
+    "pad_id": args.pad_id,
+    "tgt_pad_id": tgt_pad_id,
+    "enc_vocab_size": encoder.emb.num_embeddings,
+    "dec_vocab_size": decoder.emb.num_embeddings,
+    "emb_dim": args.emb_dim,
+    "hid_dim": args.hid_dim,
+    "enc_num_layers": args.enc_num_layers,
+    "dec_num_layers": args.dec_num_layers,
+    "dropout": args.dropout,
+    "encoder_pad_idx": encoder.emb.padding_idx,
+    "decoder_pad_idx": decoder.emb.padding_idx,
+    "batch_size": args.batch_size,
+    "lr_enc": args.lr_enc,
+    "lr_dec": args.lr_dec,
+    "criterion": type(criterion).__name__,
+    "num_epochs": args.num_epochs,
+    "patience": args.patience,
+    "tgt_tokenizer": getattr(tgt_tokenizer, "name_or_path", str(tgt_tokenizer)),
+    "semantic_similarity_model": "paraphrase-multilingual-mpnet-base-v2",
+    }
 
-    # Setup schedulers
-    sched_enc = ReduceLROnPlateau(enc_opt, mode="min", factor=args.scheduler_factor, patience=args.scheduler_patience)
-    sched_dec = ReduceLROnPlateau(dec_opt, mode="min", factor=args.scheduler_factor, patience=args.scheduler_patience)
+    if not args.test_only:
+        enc_opt = torch.optim.Adam(encoder.parameters(), lr=args.lr_enc)
+        dec_opt = torch.optim.Adam(decoder.parameters(), lr=args.lr_dec)
+        config.update({       
+            "optim_enc": type(enc_opt).__name__,
+            "optim_dec": type(dec_opt).__name__ ,
+            "dataset_len": len(dataset),
+            "dataset_features": list(dataset.features.keys()),
+            })
 
-    encoder.train()
-    decoder.train()
+        # Setup schedulers
+        sched_enc = ReduceLROnPlateau(enc_opt, mode="min", factor=args.scheduler_factor, patience=args.scheduler_patience)
+        sched_dec = ReduceLROnPlateau(dec_opt, mode="min", factor=args.scheduler_factor, patience=args.scheduler_patience)
+
+        encoder.train()
+        decoder.train()
 
     # Initialize wandb
     import wandb
 
-    config = {
-        "device": str(device),
-        "seed": args.seed,
-        "pad_id": args.pad_id,
-        "tgt_pad_id": tgt_pad_id,
-        "enc_vocab_size": encoder.emb.num_embeddings,
-        "dec_vocab_size": decoder.emb.num_embeddings,
-        "emb_dim": args.emb_dim,
-        "hid_dim": args.hid_dim,
-        "enc_num_layers": args.enc_num_layers,
-        "dec_num_layers": args.dec_num_layers,
-        "dropout": args.dropout,
-        "encoder_pad_idx": encoder.emb.padding_idx,
-        "decoder_pad_idx": decoder.emb.padding_idx,
-        "batch_size": args.batch_size,
-        "lr_enc": args.lr_enc,
-        "lr_dec": args.lr_dec,
-        "optim_enc": type(enc_opt).__name__,
-        "optim_dec": type(dec_opt).__name__,
-        "criterion": type(criterion).__name__,
-        "dataset_len": len(dataset),
-        "dataset_features": list(dataset.features.keys()),
-        "num_epochs": args.num_epochs,
-        "patience": args.patience,
-        "tgt_tokenizer": getattr(tgt_tokenizer, "name_or_path", str(tgt_tokenizer)),
-    }
+
 
     print("Prepared wandb config:", config)
     wandb.init(
@@ -214,6 +244,20 @@ def main(args):
         name=args.wandb_name,
         config=config
     )
+
+    # If test-only mode, load checkpoint and evaluate without training
+    if args.test_only:
+        print(f"Running in test-only mode. Loading checkpoint from {args.checkpoint_path} and evaluating on provided test dataset: {args.test_dataset_path}.")
+        checkpoint = torch.load(args.checkpoint_path, map_location=device)
+        encoder.load_state_dict(checkpoint["encoder"])
+        decoder.load_state_dict(checkpoint["decoder"])
+        encoder.to(device)
+        decoder.to(device)
+        test_loss, test_bleu, test_semantic_sim = evaluate(
+            encoder, decoder, test_loader, criterion, device, tgt_tokenizer, sim_model, model_type=args.model_type
+        )
+        print(f"Test Loss: {test_loss:.4f} | Test BLEU: {test_bleu:.2f} | Test Semantic Similarity: {test_semantic_sim:.4f}")
+        return None
 
     best_val_loss = float("inf")
     patience_ctr = 0
@@ -254,8 +298,8 @@ def main(args):
             })
 
         train_loss = total_loss / len(loader)
-        val_loss, val_bleu = evaluate(
-            encoder, decoder, val_loader, criterion, device, tgt_tokenizer, model_type=args.model_type
+        val_loss, val_bleu, val_semantic_sim = evaluate(
+            encoder, decoder, val_loader, criterion, device, tgt_tokenizer, sim_model, model_type=args.model_type
         )
         sched_enc.step(val_loss)
         sched_dec.step(val_loss)
@@ -265,6 +309,7 @@ def main(args):
             "train/loss": train_loss,
             "val/loss": val_loss,
             "val/bleu": val_bleu,
+            "val/semantic_similarity": val_semantic_sim,
         })
 
         print(
@@ -293,14 +338,15 @@ def main(args):
                 break
 
     # Final evaluation on test set
-    test_loss, test_bleu = evaluate(encoder, decoder, test_loader, criterion, device, tgt_tokenizer, model_type=args.model_type)
+    test_loss, test_bleu, test_semantic_sim = evaluate(encoder, decoder, test_loader, criterion, device, tgt_tokenizer, sim_model, model_type=args.model_type)
     
     wandb.log({
         "test/loss": test_loss,
         "test/bleu": test_bleu,
+        "test/semantic_similarity": test_semantic_sim,
     })
     
-    print(f"Test Loss: {test_loss:.4f} | Test BLEU: {test_bleu:.2f}")
+    print(f"Test Loss: {test_loss:.4f} | Test BLEU: {test_bleu:.2f} | Test Semantic Similarity: {test_semantic_sim:.4f}")
     
     wandb.finish()
     
@@ -310,12 +356,16 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Train translation model")
     
     # Dataset paths
-    parser.add_argument("--train_dataset_path", type=str, default="../datasets/coco_train_msg_captions",
+    parser.add_argument("--train_dataset_path", type=str, default="../datasets/coco_train_msg_captions_5_distractors",
                         help="Path to training dataset")
-    parser.add_argument("--val_dataset_path", type=str, default="../datasets/coco_val_msg_captions",
+    parser.add_argument("--val_dataset_path", type=str, default="../datasets/coco_val_msg_captions_5_distractors",
                         help="Path to validation/test dataset")
+    parser.add_argument("--test_dataset_path", type=str, default=None,
+                        help="Path to a dataset to use only for testing (only used with --test_only)")
     parser.add_argument("--checkpoint_path", type=str, default="best_model.pt",
-                        help="Path to save best model checkpoint")
+                        help="Path to save best model checkpoint or load from when testing")
+    parser.add_argument("--test_only", action="store_true",
+                        help="If set, skip training and run evaluation only on the provided test dataset")
     
     # Model type selection
     parser.add_argument("--model_type", type=str, default="rnn", choices=["rnn", "transformer"],
