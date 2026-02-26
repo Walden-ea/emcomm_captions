@@ -214,3 +214,6 @@ runs/
 *.pt
 *.csv
 *.txt
+
+
+dumpster/

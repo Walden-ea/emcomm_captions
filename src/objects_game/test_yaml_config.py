@@ -4,6 +4,7 @@ import os
 from argparse import Namespace
 
 from src.objects_game import yaml_config, train
+from src.objects_game.helpers import train_argument_handling as tah
 
 
 def test_load_and_merge(tmp_path):
@@ -39,6 +40,9 @@ def test_get_params_accepts_yaml(tmp_path, monkeypatch):
     # call get_params with a list containing the yaml path
     args = train.get_params([str(cfg)])
     assert args.train_samples == 50000
+    # also ensure helper module is callable directly
+    args2 = tah.get_params([str(cfg)])
+    assert args2.train_samples == 50000
     assert args.n_distractors == 5
     assert args.vocab_size == 30
     assert args.mode == "gs"
