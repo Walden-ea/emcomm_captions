@@ -17,7 +17,7 @@ import torch.nn.functional as F
 import torch.utils.data
 
 import egg.core as core
-from egg.core.util import move_to
+from egg.core.util import move_to, _set_seed
 from src.objects_game.src.archs import Receiver, Sender
 from src.objects_game.src.features import VectorsLoader
 from src.objects_game.src.trainers import Trainer
@@ -78,6 +78,7 @@ class BestAndLastCheckpoint(core.Callback):
 
 def main(params):
     opts = get_params(params)
+    _set_seed(opts.random_seed)
 
     device = torch.device("cuda" if opts.cuda else "cpu")
 
@@ -95,12 +96,6 @@ def main(params):
     )
     train_data, validation_data, test_data = data_loader.get_iterators()
 
-    # for batch in train_data:
-    #     print(len(batch))
-    #     print(f"Example batch shape: {batch[0].shape}")
-    #     print(f"Example batch labels: {batch[1].shape}")
-    #     print(f"Example batch sths: {batch[2].shape}")
-    #     break
 
     data_loader.upd_cl_options(opts)
 
@@ -165,7 +160,7 @@ def main(params):
     
     callbacks = [
         core.ConsoleLogger(as_json=True),
-        BestAndLastCheckpoint(opts.checkpoint_save_path),
+        BestAndLastCheckpoint(os.path.join(opts.checkpoint_save_path, opts.wandb_name)),
         ]#,  PlateauCallback()]
     if opts.mode.lower() == "gs":
         callbacks.append(core.TemperatureUpdater(agent=sender, decay=0.9, minimum=0.1))
