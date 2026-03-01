@@ -1,13 +1,14 @@
-import argparse
 import csv
 import numpy as np
 import random
 import sacrebleu
+import sys
 import torch
 import torch.nn as nn
 from src.objects_game.src.translation import (
     Decoder, Encoder, TransformerDecoder, TransformerEncoder
 )
+from src.objects_game.helpers.train_translation_argument_handling import get_params
 from torch.nn.utils.rnn import pad_sequence
 from torch.optim.lr_scheduler import ReduceLROnPlateau
 from torch.utils.data import DataLoader
@@ -100,7 +101,8 @@ def evaluate(encoder, decoder, loader, criterion, device, tokenizer, sim_model, 
 
     return total_loss / len(loader), bleu, semantic_similarity
 
-def main(args):
+def main(params):
+    args = get_params(params)
     # Set random seeds for reproducibility
     random.seed(args.seed)
     np.random.seed(args.seed)
@@ -367,67 +369,9 @@ def main(args):
     return best_val_loss
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(description="Train translation model")
-    
-    # Dataset paths
-    parser.add_argument("--train_dataset_path", type=str, default="../datasets/coco_train_msg_captions_5_distractors",
-                        help="Path to training dataset")
-    parser.add_argument("--val_dataset_path", type=str, default="../datasets/coco_val_msg_captions_5_distractors",
-                        help="Path to validation/test dataset")
-    parser.add_argument("--test_dataset_path", type=str, default=None,
-                        help="Path to a dataset to use only for testing (only used with --test_only)")
-    parser.add_argument("--checkpoint_path", type=str, default="best_model.pt",
-                        help="Path to save best model checkpoint or load from when testing")
-    parser.add_argument("--test_only", action="store_true",
-                        help="If set, skip training and run evaluation only on the provided test dataset")
-    
-    # Model type selection
-    parser.add_argument("--model_type", type=str, default="rnn", choices=["rnn", "transformer"],
-                        help="Model architecture: 'rnn' for LSTM or 'transformer' for Transformer")
-    
-    # Model architecture
-    parser.add_argument("--src_vocab_size", type=int, default=71,
-                        help="Source vocabulary size (messages)")
-    parser.add_argument("--emb_dim", type=int, default=256,
-                        help="Embedding dimension")
-    parser.add_argument("--hid_dim", type=int, default=512,
-                        help="Hidden dimension")
-    parser.add_argument("--enc_num_layers", type=int, default=2,
-                        help="Number of encoder layers")
-    parser.add_argument("--dec_num_layers", type=int, default=2,
-                        help="Number of decoder layers")
-    parser.add_argument("--num_heads", type=int, default=8,
-                        help="Number of attention heads (for transformer model)")
-    parser.add_argument("--dropout", type=float, default=0.0,
-                        help="Dropout rate")
-    parser.add_argument("--pad_id", type=int, default=70,
-                        help="Padding ID for source sequences")
-    
-    # Training hyperparameters
-    parser.add_argument("--batch_size", type=int, default=512,
-                        help="Batch size")
-    parser.add_argument("--lr_enc", type=float, default=1e-3,
-                        help="Encoder learning rate")
-    parser.add_argument("--lr_dec", type=float, default=1e-3,
-                        help="Decoder learning rate")
-    parser.add_argument("--num_epochs", type=int, default=50,
-                        help="Number of epochs")
-    parser.add_argument("--patience", type=int, default=10,
-                        help="Early stopping patience")
-    parser.add_argument("--scheduler_patience", type=int, default=20,
-                        help="LR scheduler patience")
-    parser.add_argument("--scheduler_factor", type=float, default=0.9,
-                        help="LR scheduler decay factor")
-    
-    # Reproducibility
-    parser.add_argument("--seed", type=int, default=42,
-                        help="Random seed for reproducibility")
-    
-    # Logging
-    parser.add_argument("--wandb_project", type=str, default="EmComm-Caption-Translator",
-                        help="Weights & Biases project name")
-    parser.add_argument("--wandb_name", type=str, default="translation_baseline",
-                        help="Weights & Biases run name")
-    
-    args = parser.parse_args()
-    main(args)
+    if len(sys.argv) != 2:
+        print("Usage: python train_translation.py <config.yaml>")
+        sys.exit(1)
+
+    # forward the single path as a list so get_params can handle it
+    main([sys.argv[1]])
