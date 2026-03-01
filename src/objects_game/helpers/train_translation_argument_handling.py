@@ -155,12 +155,6 @@ def _populate_parser(parser):
 
     # Training hyperparameters
     parser.add_argument(
-        "--batch_size",
-        type=int,
-        default=512,
-        help="Batch size",
-    )
-    parser.add_argument(
         "--lr_enc",
         type=float,
         default=1e-3,
