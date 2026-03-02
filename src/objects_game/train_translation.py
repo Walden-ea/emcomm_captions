@@ -255,8 +255,8 @@ def main(params):
 
     # If test-only mode, load checkpoint and evaluate without training
     if args.test_only:
-        print(f"Running in test-only mode. Loading checkpoint from {args.checkpoint_path} and evaluating on provided test dataset: {args.test_dataset_path}.")
-        checkpoint = torch.load(args.checkpoint_path, map_location=device)
+        print(f"Running in test-only mode. Loading checkpoint from {args.checkpoint_path}/checkpoint.pt and evaluating on provided test dataset: {args.test_dataset_path}.")
+        checkpoint = torch.load(f"{args.checkpoint_path}/checkpoint.pt", map_location=device)
         encoder.load_state_dict(checkpoint["encoder"])
         decoder.load_state_dict(checkpoint["decoder"])
         encoder.to(device)
@@ -342,7 +342,7 @@ def main(params):
             torch.save({
                 "encoder": encoder.state_dict(),
                 "decoder": decoder.state_dict(),
-            }, args.checkpoint_path)
+            }, f"{args.checkpoint_path}/checkpoint.pt")
 
             wandb.log({"early_stop/best_val_loss": best_val_loss})
         else:

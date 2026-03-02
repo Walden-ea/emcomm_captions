@@ -4,7 +4,7 @@ test_dataset_path: null
 checkpoint_path: /home/elena/emcomm/emcomm_captions/checkpoints/3_distractors_proper/translation
 test_only: false
 
-model_type: rnn
+model_type: transformer
 src_vocab_size: 71
 
 emb_dim: 256
@@ -18,12 +18,12 @@ pad_id: 70
 batch_size: 512
 lr_enc: 0.001
 lr_dec: 0.001
-num_epochs: 50
-patience: 10
+num_epochs: 60
+patience: 20
 scheduler_patience: 20
 scheduler_factor: 0.9
 
 seed: 42
 
 wandb_project: EmComm-Caption-Translator
-wandb_name: 3_distr_check
+wandb_name: 3_distr_check_tf

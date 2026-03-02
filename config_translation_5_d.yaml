@@ -1,0 +1,29 @@
+train_dataset_path: /home/elena/emcomm/emcomm_captions/checkpoints/5_distractors_proper/messages/coco_train_message_captions_5_distractors
+val_dataset_path: /home/elena/emcomm/emcomm_captions/checkpoints/5_distractors_proper/messages/coco_val_message_captions_5_distractors
+test_dataset_path: null
+checkpoint_path: /home/elena/emcomm/emcomm_captions/checkpoints/5_distractors_proper/translation
+test_only: false
+
+model_type: rnn
+src_vocab_size: 71
+
+emb_dim: 256
+hid_dim: 512
+enc_num_layers: 2
+dec_num_layers: 2
+num_heads: 8
+dropout: 0.0
+pad_id: 70
+
+batch_size: 512
+lr_enc: 0.001
+lr_dec: 0.001
+num_epochs: 60
+patience: 20
+scheduler_patience: 20
+scheduler_factor: 0.9
+
+seed: 42
+
+wandb_project: EmComm-Caption-Translator
+wandb_name: 5_distr_check
