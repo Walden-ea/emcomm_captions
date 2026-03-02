@@ -148,16 +148,6 @@ def main(params):
             {"params": game.receiver.parameters(), "lr": opts.receiver_lr},
         ]
     )
-    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    #     optimizer,
-    #     mode="min",
-    #     factor=0.99,
-    #     patience=20,
-    # )
-    # class PlateauCallback(core.Callback):
-    #     def on_validation_end(self, loss, logs, epoch):
-    #         scheduler.step(loss)
-    
     callbacks = [
         core.ConsoleLogger(as_json=True),
         BestAndLastCheckpoint(os.path.join(opts.checkpoint_save_path, opts.wandb_name)),
