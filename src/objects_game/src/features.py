@@ -160,12 +160,6 @@ class VectorsLoader:
         valid_dataset = TupleDataset(*valid)
         test_dataset = TupleDataset(*test)
 
-        # print(
-        #     f"DataLoader: train samples: {len(train_dataset)}, "
-        #     f"validation samples: {len(valid_dataset)}, test samples: {len(test_dataset)}"
-        # )
-        # for i in range(len(train_dataset)):
-        #     print(f"Example train sample: {train_dataset[i]}")
 
         train_it = data.DataLoader(
             train_dataset,
