@@ -27,6 +27,9 @@ class VectorsLoader:
         shuffle_train_data=False,
         dump_data_folder=None,
         load_data_path=None,
+        train_dataset=None,
+        val_dataset=None,
+        test_dataset=None,
         seed=None,
     ):
 
@@ -42,6 +45,9 @@ class VectorsLoader:
         self.shuffle_train_data = shuffle_train_data
 
         self.load_data_path = load_data_path
+        self.train_dataset = train_dataset
+        self.val_dataset = val_dataset
+        self.test_dataset = test_dataset
 
         self.dump_data_folder = (
             pathlib.Path(dump_data_folder) if dump_data_folder is not None else None
@@ -81,6 +87,32 @@ class VectorsLoader:
         self._n_features = len(self.perceptual_dimensions)
 
         return (train, train_labels), (valid, valid_labels), (test, test_labels)
+
+    def _extract_features_from_dataset(self, dataset):
+        """Extract features from a single dataset and convert to numpy array.
+        
+        Args:
+            dataset: Dataset object with 'features' column
+            
+        Returns:
+            numpy array of feature vectors
+        """
+        if dataset is None:
+            return np.array([])
+        
+        # Extract features and convert to consistent format
+        all_features = []
+        if isinstance(dataset['features'][0], (list, tuple)):
+            all_features = [np.array(f) for f in dataset['features']]
+        else:
+            all_features = [dataset['features'][i] for i in range(len(dataset))]
+        
+        all_vectors = np.array(all_features)
+        
+        # Update n_features based on the actual feature dimension
+        self._n_features = all_vectors.shape[1] if len(all_vectors.shape) > 1 else 1
+        
+        return all_vectors
 
     def _fill_split(self, all_vectors, n_samples, tuple_dict):
         split_list = []
@@ -130,25 +162,39 @@ class VectorsLoader:
         )
 
     def get_iterators(self):
-        if self.load_data_path:
+        if self.train_dataset is not None or self.val_dataset is not None or self.test_dataset is not None:
+            # Extract features from each dataset separately and generate tuples for each
+            
+            # Process training dataset
+            if self.train_dataset is not None:
+                train_vectors = self._extract_features_from_dataset(self.train_dataset)
+                train_split, _ = self._fill_split(train_vectors, self.train_samples, {})
+                train = train_split
+            else:
+                train = (np.array([]), np.array([]))
+            
+            # Process validation dataset
+            if self.val_dataset is not None:
+                val_vectors = self._extract_features_from_dataset(self.val_dataset)
+                valid_split, _ = self._fill_split(val_vectors, self.validation_samples, {})
+                valid = valid_split
+            else:
+                valid = (np.array([]), np.array([]))
+            
+            # Process test dataset
+            if self.test_dataset is not None:
+                test_vectors = self._extract_features_from_dataset(self.test_dataset)
+                test_split, _ = self._fill_split(test_vectors, self.test_samples, {})
+                test = test_split
+            else:
+                test = (np.array([]), np.array([]))
+        elif self.load_data_path:
             train, valid, test = self.load_data(self.load_data_path)
-        else:  # if load_data_path wasn't given then I need to generate the tuple
-            world_dim = reduce(lambda x, y: x * y, self.perceptual_dimensions)
-            possible_tuples = compute_binomial(world_dim, self.n_distractors + 1)
-
-            list_of_dim = [range(1, elem + 1) for elem in self.perceptual_dimensions]
-            all_vectors = list(itertools.product(*list_of_dim))
-
-            assert (
-                self.train_samples > 0
-                and self.validation_samples > 0
-                and self.test_samples > 0
-            ), "Train size, validation size and test size must all be greater than 0"
-            assert (
-                possible_tuples
-                > self.train_samples + self.validation_samples + self.test_samples
-            ), f"Not enough data for requested split sizes. Reduced split samples or increase perceptual_dimensions"
-            train, valid, test = self.generate_tuples(data=all_vectors)
+        else:
+            raise ValueError(
+                "Either train_dataset, val_dataset, test_dataset must be provided, "
+                "or load_data_path must be specified"
+            )
 
         assert (
             self.train_samples >= self.batch_size
