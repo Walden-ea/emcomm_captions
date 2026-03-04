@@ -80,6 +80,25 @@ def _populate_parser(parser):
         default=None,
         help="Path to .npz data file to load",
     )
+    input_data.add_argument(
+        "--train_dataset_path",
+        type=str,
+        default=None,
+        help="Path to HuggingFace dataset for training (generates tuples on the fly)",
+    )
+
+    parser.add_argument(
+        "--val_dataset_path",
+        type=str,
+        default=None,
+        help="Path to HuggingFace dataset for validation (generates tuples on the fly)",
+    )
+    parser.add_argument(
+        "--test_dataset_path",
+        type=str,
+        default=None,
+        help="Path to HuggingFace dataset for testing (generates tuples on the fly)",
+    )
 
     parser.add_argument(
         "--n_distractors",
@@ -241,25 +260,35 @@ def check_args(args):
         int(args.test_samples),
     )
 
-    try:
-        args.perceptual_dimensions = eval(args.perceptual_dimensions)
-    except SyntaxError:
-        print(
-            "The format of the # of perceptual dimensions param is not correct. Please change it to string representing a list of int. Correct format: '[int, ..., int]' "
-        )
-        exit(1)
+    # Only parse perceptual_dimensions if not using datasets
+    if not args.train_dataset_path:
+        try:
+            args.perceptual_dimensions = eval(args.perceptual_dimensions)
+        except SyntaxError:
+            print(
+                "The format of the # of perceptual dimensions param is not correct. Please change it to string representing a list of int. Correct format: '[int, ..., int]' "
+            )
+            exit(1)
+        args.n_features = len(args.perceptual_dimensions)
+    else:
+        # When using datasets, n_features will be determined from the data
+        args.perceptual_dimensions = None
+        args.n_features = None
 
     if args.debug:
         import pdb
 
         pdb.set_trace()
 
-    args.n_features = len(args.perceptual_dimensions)
-
     # can't set data loading and data dumping at the same time
     assert not (
         args.load_data_path and args.dump_data_folder
     ), "Cannot set folder to dump data while setting path to vectors to be loaded. Are you trying to dump the same vectors that you are loading?"
+
+    # can't set dataset paths and dump_data_folder at the same time
+    assert not (
+        args.train_dataset_path and args.dump_data_folder
+    ), "Cannot set folder to dump data while using dataset-based tuple generation."
 
     args.dump_msg_folder = (
         pathlib.Path(args.dump_msg_folder) if args.dump_msg_folder is not None else None

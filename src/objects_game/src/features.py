@@ -34,7 +34,9 @@ class VectorsLoader:
     ):
 
         self.perceptual_dimensions = perceptual_dimensions
-        self._n_features = len(self.perceptual_dimensions)
+        self._n_features = (
+            len(self.perceptual_dimensions) if self.perceptual_dimensions else None
+        )
         self.n_distractors = n_distractors
 
         self.batch_size = batch_size
@@ -53,7 +55,7 @@ class VectorsLoader:
             pathlib.Path(dump_data_folder) if dump_data_folder is not None else None
         )
 
-        seed = seed if seed else np.random.randint(0, 2 ** 31)
+        seed = seed if seed else np.random.randint(0, 2**31)
         self.random_state = np.random.RandomState(seed)
 
     @property
@@ -90,28 +92,28 @@ class VectorsLoader:
 
     def _extract_features_from_dataset(self, dataset):
         """Extract features from a single dataset and convert to numpy array.
-        
+
         Args:
             dataset: Dataset object with 'features' column
-            
+
         Returns:
             numpy array of feature vectors
         """
         if dataset is None:
             return np.array([])
-        
+
         # Extract features and convert to consistent format
         all_features = []
-        if isinstance(dataset['features'][0], (list, tuple)):
-            all_features = [np.array(f) for f in dataset['features']]
+        if isinstance(dataset["features"][0], (list, tuple)):
+            all_features = [np.array(f) for f in dataset["features"]]
         else:
-            all_features = [dataset['features'][i] for i in range(len(dataset))]
-        
+            all_features = [dataset["features"][i] for i in range(len(dataset))]
+
         all_vectors = np.array(all_features)
-        
+
         # Update n_features based on the actual feature dimension
         self._n_features = all_vectors.shape[1] if len(all_vectors.shape) > 1 else 1
-        
+
         return all_vectors
 
     def _fill_split(self, all_vectors, n_samples, tuple_dict):
@@ -139,6 +141,57 @@ class VectorsLoader:
 
         return (np.array(split_list), target_idxs), tuple_dict
 
+    def _fill_split_from_dataset(self, all_vectors):
+        """Create tuples ensuring each sample serves as a target exactly once.
+        
+        Creates as many datapoints as there are samples in all_vectors.
+        Each sample will serve as the target vector exactly once.
+        
+        Args:
+            all_vectors: numpy array of shape (n_samples, n_features)
+            
+        Returns:
+            tuple of (split_data, target_idxs)
+            - split_data: numpy array of shape (n_samples, n_distractors+1, n_features)
+            - target_idxs: numpy array of shape (n_samples,) with values 0 to n_distractors
+        """
+        n_samples = len(all_vectors)
+        tuple_dim = self.n_distractors + 1
+        
+        # Pre-allocate output array (much faster than appending)
+        split_list = np.zeros((n_samples, tuple_dim, all_vectors.shape[1]), dtype=all_vectors.dtype)
+        
+        # Assign random target positions for each sample
+        target_idxs = self.random_state.randint(0, tuple_dim, n_samples)
+        
+        # Place all targets at once using advanced indexing
+        split_list[np.arange(n_samples), target_idxs] = all_vectors
+        
+        # Fill distractor positions
+        for target_idx in range(n_samples):
+            target_pos = target_idxs[target_idx]
+            
+            # Get non-target indices efficiently
+            non_target_indices = np.concatenate([
+                np.arange(target_idx),
+                np.arange(target_idx + 1, n_samples)
+            ])
+            
+            # Sample distractors
+            distractor_indices = self.random_state.choice(
+                non_target_indices,
+                size=self.n_distractors,
+                replace=False
+            )
+            
+            # Get positions to fill (all except target position)
+            fill_positions = [i for i in range(tuple_dim) if i != target_pos]
+            
+            # Place all distractors at once
+            split_list[target_idx, fill_positions] = all_vectors[distractor_indices]
+        
+        return (split_list, target_idxs)
+
     def generate_tuples(self, data):
         data = np.array(data)
         train_data, tuple_dict = self._fill_split(data, self.train_samples, {})
@@ -162,30 +215,34 @@ class VectorsLoader:
         )
 
     def get_iterators(self):
-        if self.train_dataset is not None or self.val_dataset is not None or self.test_dataset is not None:
+        if (
+            self.train_dataset is not None
+            or self.val_dataset is not None
+            or self.test_dataset is not None
+        ):
             # Extract features from each dataset separately and generate tuples for each
-            
+
             # Process training dataset
             if self.train_dataset is not None:
                 train_vectors = self._extract_features_from_dataset(self.train_dataset)
-                train_split, _ = self._fill_split(train_vectors, self.train_samples, {})
-                train = train_split
+                train = self._fill_split_from_dataset(train_vectors)
+                self.train_samples = len(train_vectors)
             else:
                 train = (np.array([]), np.array([]))
-            
+
             # Process validation dataset
             if self.val_dataset is not None:
                 val_vectors = self._extract_features_from_dataset(self.val_dataset)
-                valid_split, _ = self._fill_split(val_vectors, self.validation_samples, {})
-                valid = valid_split
+                valid = self._fill_split_from_dataset(val_vectors)
+                self.validation_samples = len(val_vectors)
             else:
                 valid = (np.array([]), np.array([]))
-            
+
             # Process test dataset
             if self.test_dataset is not None:
                 test_vectors = self._extract_features_from_dataset(self.test_dataset)
-                test_split, _ = self._fill_split(test_vectors, self.test_samples, {})
-                test = test_split
+                test = self._fill_split_from_dataset(test_vectors)
+                self.test_samples = len(test_vectors)
             else:
                 test = (np.array([]), np.array([]))
         elif self.load_data_path:
@@ -200,12 +257,13 @@ class VectorsLoader:
             self.train_samples >= self.batch_size
             and self.validation_samples >= self.batch_size
             and self.test_samples >= self.batch_size
-        ), f"Batch size cannot be smaller than any split size"
+        ), f"\
+Batch size cannot be smaller than any split size;\nGot batch size {self.batch_size}, \ntrain samples {self.train_samples},\n\nvalidation samples {self.validation_samples},\ntest samples {self.test_samples}\
+        "
 
         train_dataset = TupleDataset(*train)
         valid_dataset = TupleDataset(*valid)
         test_dataset = TupleDataset(*test)
-
 
         train_it = data.DataLoader(
             train_dataset,

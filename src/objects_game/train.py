@@ -16,6 +16,8 @@ import torch
 import torch.nn.functional as F
 import torch.utils.data
 
+from datasets import load_from_disk
+
 import egg.core as core
 from egg.core.util import move_to, _set_seed
 from src.objects_game.src.archs import Receiver, Sender
@@ -28,7 +30,6 @@ from src.objects_game.src.util import (
     entropy,
     mutual_info,
 )
-
 
 
 
@@ -82,6 +83,24 @@ def main(params):
 
     device = torch.device("cuda" if opts.cuda else "cpu")
 
+    # Load datasets if using dataset-based tuple generation
+    train_dataset = None
+    val_dataset = None
+    test_dataset = None
+    
+    if opts.train_dataset_path:
+        print(f"Loading train dataset from {opts.train_dataset_path}")
+        train_dataset = load_from_disk(opts.train_dataset_path)
+        
+        if opts.val_dataset_path:
+            print(f"Loading validation dataset from {opts.val_dataset_path}")
+            val_dataset = load_from_disk(opts.val_dataset_path)
+        
+        if opts.test_dataset_path:
+            print(f"Loading test dataset from {opts.test_dataset_path}")
+            test_dataset = load_from_disk(opts.test_dataset_path)
+
+    # Initialize data loader
     data_loader = VectorsLoader(
         perceptual_dimensions=opts.perceptual_dimensions,
         n_distractors=opts.n_distractors,
@@ -92,6 +111,9 @@ def main(params):
         shuffle_train_data=opts.shuffle_train_data,
         dump_data_folder=opts.dump_data_folder,
         load_data_path=opts.load_data_path,
+        train_dataset=train_dataset,
+        val_dataset=val_dataset,
+        test_dataset=test_dataset,
         seed=opts.data_seed,
     )
     train_data, validation_data, test_data = data_loader.get_iterators()
@@ -106,10 +128,10 @@ def main(params):
             f"\n| Baselines measures with {opts.n_distractors} distractors and messages of max_len = {opts.max_len}:\n"
             f"| Dummy random baseline: accuracy = {1 / (opts.n_distractors + 1)}\n"
         )
-        if -1 not in opts.perceptual_dimensions:
+        if opts.perceptual_dimensions is not None and -1 not in opts.perceptual_dimensions:
             baseline_msg += f'| "Smart" baseline with perceptual_dimensions {opts.perceptual_dimensions} = {compute_baseline_accuracy(opts.n_distractors, opts.max_len, *opts.perceptual_dimensions)}\n'
         else:
-            baseline_msg += f'| Data was loaded froman external file, thus no perceptual_dimension vector was provided, "smart baseline" cannot be computed\n'
+            baseline_msg += f'| Data was loaded from an external file or dataset, thus no perceptual_dimension vector was provided, "smart baseline" cannot be computed\n'
 
     print(baseline_msg)
 

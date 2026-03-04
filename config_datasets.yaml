@@ -1,0 +1,28 @@
+checkpoint_save_path: './checkpoints'
+vocab_size: 70
+n_distractors: 3
+n_epoch: 100
+max_len: 100
+
+sender_lr: 0.01
+receiver_lr: 0.01
+batch_size: 512
+
+random_seed: 42
+data_seed: 222
+
+train_samples: 100
+validation_samples: 100
+test_samples: 100
+
+evaluate: true
+shuffle_train_data: true
+
+# Dataset paths for message generation
+train_dataset_path: /home/elena/emcomm/datasets/coco_train_features_resnet_152
+val_dataset_path: /home/elena/emcomm/datasets/coco_val_features_resnet_152_splitted
+test_dataset_path: /home/elena/emcomm/datasets/coco_test_features_resnet_152_splitted
+
+wandb: true
+wandb_name: 3_distractors_do_dynamic_distractors
+# checkpoint_s
