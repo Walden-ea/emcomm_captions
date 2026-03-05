@@ -107,6 +107,15 @@ def _populate_parser(parser):
         help="Number of distractor objects for the receiver (default: 3)",
     )
     parser.add_argument(
+        "--distractor_dataset_type",
+        type=str,
+        default="random",
+        choices=["random", "curricular"],
+        help="Type of distractor selection strategy for dataset-based loaders: "
+             "'random' selects random distractors, 'curricular' uses cosine similarity "
+             "with increasing complexity per epoch (default: random)",
+    )
+    parser.add_argument(
         "--train_samples",
         type=float,
         default=1e5,

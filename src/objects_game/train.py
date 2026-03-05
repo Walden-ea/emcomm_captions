@@ -21,7 +21,7 @@ from datasets import load_from_disk
 import egg.core as core
 from egg.core.util import move_to, _set_seed
 from src.objects_game.src.archs import Receiver, Sender
-from src.objects_game.src.features import VectorsLoader
+from src.objects_game.src.features import VectorsLoader, CurriculumVectorsLoader
 from src.objects_game.src.trainers import Trainer
 from src.objects_game.src.util import (
     compute_baseline_accuracy,
@@ -102,21 +102,38 @@ def main(params):
             test_dataset = load_from_disk(opts.test_dataset_path)
 
     # Initialize data loader
-    data_loader = VectorsLoader(
-        perceptual_dimensions=opts.perceptual_dimensions,
-        n_distractors=opts.n_distractors,
-        batch_size=opts.batch_size,
-        train_samples=opts.train_samples,
-        validation_samples=opts.validation_samples,
-        test_samples=opts.test_samples,
-        shuffle_train_data=opts.shuffle_train_data,
-        dump_data_folder=opts.dump_data_folder,
-        load_data_path=opts.load_data_path,
-        train_dataset=train_dataset,
-        val_dataset=val_dataset,
-        test_dataset=test_dataset,
-        seed=opts.data_seed,
-    )
+    if opts.distractor_dataset_type == "curricular":
+        data_loader = CurriculumVectorsLoader(
+            perceptual_dimensions=opts.perceptual_dimensions,
+            n_distractors=opts.n_distractors,
+            batch_size=opts.batch_size,
+            train_samples=opts.train_samples,
+            validation_samples=opts.validation_samples,
+            test_samples=opts.test_samples,
+            shuffle_train_data=opts.shuffle_train_data,
+            dump_data_folder=opts.dump_data_folder,
+            load_data_path=opts.load_data_path,
+            train_dataset=train_dataset,
+            val_dataset=val_dataset,
+            test_dataset=test_dataset,
+            seed=opts.data_seed,
+        )
+    else:
+        data_loader = VectorsLoader(
+            perceptual_dimensions=opts.perceptual_dimensions,
+            n_distractors=opts.n_distractors,
+            batch_size=opts.batch_size,
+            train_samples=opts.train_samples,
+            validation_samples=opts.validation_samples,
+            test_samples=opts.test_samples,
+            shuffle_train_data=opts.shuffle_train_data,
+            dump_data_folder=opts.dump_data_folder,
+            load_data_path=opts.load_data_path,
+            train_dataset=train_dataset,
+            val_dataset=val_dataset,
+            test_dataset=test_dataset,
+            seed=opts.data_seed,
+        )
     train_data, validation_data, test_data = data_loader.get_iterators()
 
 

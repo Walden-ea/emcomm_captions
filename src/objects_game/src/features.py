@@ -11,6 +11,7 @@ from functools import reduce
 import numpy as np
 import torch
 from torch.utils import data
+from sklearn.metrics.pairwise import cosine_similarity
 
 from egg.zoo.objects_game.util import compute_binomial
 
@@ -319,3 +320,131 @@ class TupleDataset(data.Dataset):
                 "Accessing dataset through wrong index: < 0 or >= max_len"
             )
         return self.list_of_tuples[idx], self.target_idxs[idx]
+
+
+class CurriculumVectorsLoader(VectorsLoader):
+    """Vector loader that implements curriculum learning through distractor difficulty.
+    
+    Instead of selecting random distractors, this loader selects distractors based on
+    cosine similarity to the target vector. The number of distractors increases with
+    epoch (n_distractors + epoch), and the closest ones by cosine similarity are selected,
+    creating a curriculum from easy (random) to hard (similar) distractors.
+    """
+    
+    def __init__(
+        self,
+        perceptual_dimensions=[4, 4, 4, 4, 4],
+        n_distractors=1,
+        batch_size=32,
+        train_samples=128000,
+        validation_samples=4096,
+        test_samples=1024,
+        shuffle_train_data=False,
+        dump_data_folder=None,
+        load_data_path=None,
+        train_dataset=None,
+        val_dataset=None,
+        test_dataset=None,
+        seed=None,
+        n_epochs=100,
+    ):
+        super().__init__(
+            perceptual_dimensions=perceptual_dimensions,
+            n_distractors=n_distractors,
+            batch_size=batch_size,
+            train_samples=train_samples,
+            validation_samples=validation_samples,
+            test_samples=test_samples,
+            shuffle_train_data=shuffle_train_data,
+            dump_data_folder=dump_data_folder,
+            load_data_path=load_data_path,
+            train_dataset=train_dataset,
+            val_dataset=val_dataset,
+            test_dataset=test_dataset,
+            seed=seed,
+        )
+        self.n_epochs = n_epochs
+        self.current_epoch = 0
+
+    def set_epoch(self, epoch):
+        """Set the current epoch to allow curriculum progression."""
+        self.current_epoch = epoch
+
+    def _fill_split_from_dataset_curriculum(self, all_vectors):
+        """Create tuples with curriculum learning for distractors.
+        
+        Uses cosine similarity to select distractors. The number of candidate
+        distractors is n_distractors + current_epoch, and the closest ones
+        by cosine similarity to the target are selected. This creates a
+        curriculum where early epochs have easier (more random) distractors.
+        
+        Args:
+            all_vectors: numpy array of shape (n_samples, n_features)
+            
+        Returns:
+            tuple of (split_data, target_idxs)
+            - split_data: numpy array of shape (n_samples, n_distractors+1, n_features)
+            - target_idxs: numpy array of shape (n_samples,) with values 0 to n_distractors
+        """
+        n_samples = len(all_vectors)
+        tuple_dim = self.n_distractors + 1
+        
+        # Pre-allocate output array
+        split_list = np.zeros((n_samples, tuple_dim, all_vectors.shape[1]), dtype=all_vectors.dtype)
+        
+        # Assign random target positions for each sample
+        target_idxs = self.random_state.randint(0, tuple_dim, n_samples)
+        
+        # Place all targets at once
+        split_list[np.arange(n_samples), target_idxs] = all_vectors
+        
+        # Compute cosine similarity matrix for all vectors
+        # Shape: (n_samples, n_samples)
+        similarity_matrix = cosine_similarity(all_vectors)
+        
+        # Fill distractor positions with curriculum learning
+        for target_idx in range(n_samples):
+            target_pos = target_idxs[target_idx]
+            
+            # Get non-target indices
+            non_target_indices = np.concatenate([
+                np.arange(target_idx),
+                np.arange(target_idx + 1, n_samples)
+            ])
+            
+            # Get similarity scores for non-target vectors
+            similarities = similarity_matrix[target_idx, non_target_indices]
+            
+            # Number of candidates increases with epoch: basic distractors + extra similar ones
+            n_candidates = min(
+                self.n_distractors + self.current_epoch,
+                len(non_target_indices)
+            )
+            
+            # Select the n_candidates closest vectors by cosine similarity
+            # argsort gives ascending order, negate to get descending
+            closest_indices = np.argsort(-similarities)[:n_candidates]
+            
+            # From these candidates, randomly select n_distractors
+            if n_candidates > self.n_distractors:
+                selected_positions = self.random_state.choice(
+                    np.arange(n_candidates),
+                    size=self.n_distractors,
+                    replace=False
+                )
+                distractor_indices = non_target_indices[closest_indices[selected_positions]]
+            else:
+                distractor_indices = non_target_indices[closest_indices]
+            
+            # Get positions to fill (all except target position)
+            fill_positions = [i for i in range(tuple_dim) if i != target_pos]
+            
+            # Place all distractors
+            split_list[target_idx, fill_positions] = all_vectors[distractor_indices]
+        
+        return (split_list, target_idxs)
+
+    def _fill_split_from_dataset(self, all_vectors):
+        """Override to use curriculum learning version."""
+        return self._fill_split_from_dataset_curriculum(all_vectors)
+
