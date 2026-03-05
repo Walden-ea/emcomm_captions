@@ -9,6 +9,7 @@ import numpy as np
 import torch
 
 from egg.core.util import move_to
+from egg.core.callbacks import Callback
 
 
 def compute_binomial(n, k):
@@ -195,3 +196,19 @@ def dump_sender_receiver(
     game.train(mode=train_state)
 
     return sender_inputs, messages, receiver_inputs, receiver_outputs, labels
+
+class DataRegeneratorCallback(Callback):
+    """Callback to regenerate data iterators at the start of each epoch.
+    
+    This ensures new random distractors are sampled for each epoch when using
+    a VectorsLoader-based data loader.
+    """
+    
+    def __init__(self, data_loader):
+        self.data_loader = data_loader
+    
+    def on_epoch_begin(self, epoch: int):
+        """Regenerate train and validation data iterators at the start of each epoch."""
+        train_data, validation_data, _ = self.data_loader.get_iterators()
+        self.trainer.train_data = train_data
+        self.trainer.validation_data = validation_data

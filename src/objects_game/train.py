@@ -29,6 +29,7 @@ from src.objects_game.src.util import (
     dump_sender_receiver,
     entropy,
     mutual_info,
+    DataRegeneratorCallback,
 )
 
 
@@ -183,6 +184,10 @@ def main(params):
         if isinstance(callback, BestAndLastCheckpoint):
             best_checkpoint = callback
             break
+    
+    # Add data regenerator callback if using a data_loader
+    if data_loader is not None:
+        callbacks.append(DataRegeneratorCallback(data_loader))
     
     trainer = Trainer(
         game=game,
