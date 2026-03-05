@@ -373,10 +373,11 @@ class CurriculumVectorsLoader(VectorsLoader):
     def _fill_split_from_dataset_curriculum(self, all_vectors):
         """Create tuples with curriculum learning for distractors.
         
-        Uses cosine similarity to select distractors. The number of candidate
-        distractors is n_distractors + current_epoch, and the closest ones
-        by cosine similarity to the target are selected. This creates a
-        curriculum where early epochs have easier (more random) distractors.
+        Uses cosine similarity to select distractors from sampled candidates.
+        For each target, samples n_distractors + current_epoch candidate vectors,
+        computes similarity only on those candidates, and selects the closest ones.
+        This creates a curriculum where early epochs have easier (more random) 
+        distractors and later epochs have harder (more similar) distractors.
         
         Args:
             all_vectors: numpy array of shape (n_samples, n_features)
@@ -398,10 +399,6 @@ class CurriculumVectorsLoader(VectorsLoader):
         # Place all targets at once
         split_list[np.arange(n_samples), target_idxs] = all_vectors
         
-        # Compute cosine similarity matrix for all vectors
-        # Shape: (n_samples, n_samples)
-        similarity_matrix = cosine_similarity(all_vectors)
-        
         # Fill distractor positions with curriculum learning
         for target_idx in range(n_samples):
             target_pos = target_idxs[target_idx]
@@ -412,29 +409,37 @@ class CurriculumVectorsLoader(VectorsLoader):
                 np.arange(target_idx + 1, n_samples)
             ])
             
-            # Get similarity scores for non-target vectors
-            similarities = similarity_matrix[target_idx, non_target_indices]
-            
-            # Number of candidates increases with epoch: basic distractors + extra similar ones
+            # Number of candidates increases with epoch
             n_candidates = min(
-                self.n_distractors + self.current_epoch,
+                self.n_distractors + self.current_epoch*2,
                 len(non_target_indices)
             )
             
-            # Select the n_candidates closest vectors by cosine similarity
-            # argsort gives ascending order, negate to get descending
-            closest_indices = np.argsort(-similarities)[:n_candidates]
+            # Sample candidate distractors randomly
+            sampled_candidate_indices = self.random_state.choice(
+                non_target_indices,
+                size=n_candidates,
+                replace=False
+            )
             
-            # From these candidates, randomly select n_distractors
+            # Get the target vector
+            target_vector = all_vectors[target_idx:target_idx + 1]  # Keep 2D shape
+            
+            # Get the sampled candidates
+            sampled_candidates = all_vectors[sampled_candidate_indices]
+            
+            # Compute cosine similarity only between target and sampled candidates
+            # Shape: (1, n_candidates)
+            similarities = cosine_similarity(target_vector, sampled_candidates)[0]
+            
+            # Select the n_distractors closest vectors from sampled candidates
             if n_candidates > self.n_distractors:
-                selected_positions = self.random_state.choice(
-                    np.arange(n_candidates),
-                    size=self.n_distractors,
-                    replace=False
-                )
-                distractor_indices = non_target_indices[closest_indices[selected_positions]]
+                # Get indices of closest distractors (descending similarity)
+                closest_positions = np.argsort(-similarities)[:self.n_distractors]
+                distractor_indices = sampled_candidate_indices[closest_positions]
             else:
-                distractor_indices = non_target_indices[closest_indices]
+                # Use all sampled candidates
+                distractor_indices = sampled_candidate_indices
             
             # Get positions to fill (all except target position)
             fill_positions = [i for i in range(tuple_dim) if i != target_pos]

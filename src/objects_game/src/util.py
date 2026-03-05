@@ -209,6 +209,10 @@ class DataRegeneratorCallback(Callback):
     
     def on_epoch_begin(self, epoch: int):
         """Regenerate train and validation data iterators at the start of each epoch."""
+        # Set epoch if the loader supports it (e.g., PreGeneratedEpochCurriculumLoader)
+        if hasattr(self.data_loader, 'set_epoch'):
+            self.data_loader.set_epoch(epoch)
+        
         train_data, validation_data, _ = self.data_loader.get_iterators()
         self.trainer.train_data = train_data
         self.trainer.validation_data = validation_data
