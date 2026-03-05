@@ -1,7 +1,7 @@
 checkpoint_save_path: './checkpoints'
 vocab_size: 70
 n_distractors: 3
-n_epoch: 100
+n_epoch: 50
 max_len: 100
 
 sender_lr: 0.01
@@ -18,12 +18,13 @@ test_samples: 100
 evaluate: true
 shuffle_train_data: true
 
-load_data_path: /home/elena/emcomm/datasets/coco_npz/coco_full_train_val_152_resnet_5_distractors.npz
-
+# load_data_path: /home/elena/emcomm/datasets/coco_npz/coco_full_train_val_152_resnet_5_distractors.npz
+# load_data_path: /home/elena/emcomm/emcomm_captions/epoch_datasets/epoch_0000/data.npz
+load_data_path: /home/elena/emcomm/emcomm_captions/epoch_datasets/data_3_distractors_1_epoch.npz
 # Dataset paths for message generation
 dataset_train_path: /home/elena/emcomm/datasets/coco_train_features_resnet_152
 dataset_val_path: /home/elena/emcomm/datasets/coco_val_features_resnet_152
 dataset_test_path: null  # Set to path if available, null to skip
 
 wandb: true
-wandb_name: 3_distractors_proper
+wandb_name: test_sim_data
