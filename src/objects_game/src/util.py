@@ -216,3 +216,130 @@ class DataRegeneratorCallback(Callback):
         train_data, validation_data, _ = self.data_loader.get_iterators()
         self.trainer.train_data = train_data
         self.trainer.validation_data = validation_data
+
+
+class EpochDataLoaderCallback(Callback):
+    """Callback to load pre-shuffled epoch-specific NPZ data files.
+    
+    Loads data from epoch-specific files following a template pattern at the start
+    of each epoch. Useful for pre-generated, pre-shuffled datasets where each epoch
+    has its own set of samples.
+    """
+    
+    def __init__(self, data_loader, epoch_data_path_template):
+        """
+        Args:
+            data_loader: A VectorsLoader instance used to process loaded data
+            epoch_data_path_template: Path template with {epoch} placeholder, 
+                                      e.g., '/path/data_3_distractors_{epoch}_epoch.npz'
+        """
+        self.data_loader = data_loader
+        self.epoch_data_path_template = epoch_data_path_template
+    
+    def on_epoch_begin(self, epoch: int):
+        """Load epoch-specific data file at the start of each epoch."""
+        # Replace {epoch} placeholder in the template with the actual epoch number
+        epoch_data_path = self.epoch_data_path_template.format(epoch=epoch)
+        
+        print(f"Loading epoch-specific data from: {epoch_data_path}")
+        
+        # Load the NPZ file using the data_loader's load_data method
+        train, valid, test = self.data_loader.load_data(epoch_data_path)
+        
+        # Convert loaded data to datasets and iterators
+        from src.objects_game.src.features import TupleDataset
+        from torch.utils import data
+        
+        train_dataset = TupleDataset(*train)
+        valid_dataset = TupleDataset(*valid)
+        test_dataset = TupleDataset(*test)
+        print('SHAPE: ')
+        print(test_dataset[0][0].shape)
+        print(test_dataset[0][1].shape)
+        
+        train_it = data.DataLoader(
+            train_dataset,
+            batch_size=self.data_loader.batch_size,
+            shuffle=self.data_loader.shuffle_train_data,
+            num_workers=0,
+        )
+        
+        valid_it = data.DataLoader(
+            valid_dataset,
+            batch_size=self.data_loader.batch_size,
+            shuffle=False,
+            num_workers=0,
+        )
+        
+        # test_it = data.DataLoader(
+        #     test_dataset,
+        #     batch_size=self.data_loader.batch_size,
+        #     shuffle=False,
+        #     num_workers=0,
+        # )
+        
+        # Update trainer's data
+        self.trainer.train_data = train_it
+        self.trainer.validation_data = valid_it
+
+
+# class EpochNpzLoaderCallback(Callback):
+#     """Callback to load pre-shuffled epoch-specific NPZ data files directly.
+    
+#     Loads pre-shuffled NPZ files for each epoch without using a data loader.
+#     Useful for pre-generated datasets where each epoch has its own set of samples.
+#     """
+    
+#     def __init__(self, epoch_data_path_template, batch_size=128, shuffle_train=True):
+#         """
+#         Args:
+#             epoch_data_path_template: Path template with {num_epoch} placeholder, 
+#                                       e.g., '/path/data_3_distractors_{num_epoch}_epoch.npz'
+#             batch_size: Batch size for data loaders
+#             shuffle_train: Whether to shuffle training data
+#         """
+#         self.epoch_data_path_template = epoch_data_path_template
+#         self.batch_size = batch_size
+#         self.shuffle_train = shuffle_train
+    
+#     def on_epoch_begin(self, epoch: int):
+#         """Load epoch-specific NPZ file at the start of each epoch."""
+#         # Replace {num_epoch} placeholder with the actual epoch number
+#         epoch_data_path = self.epoch_data_path_template.format(num_epoch=epoch)
+        
+#         print(f"Loading epoch data from: {epoch_data_path}")
+        
+#         # Load the NPZ file
+#         data = np.load(epoch_data_path)
+#         train, train_labels = data["train"], data["train_labels"]
+#         valid, valid_labels = data["valid"], data["valid_labels"]
+#         test, test_labels = data["test"], data["test_labels"]
+        
+#         # Import here to avoid circular imports
+#         from src.objects_game.src.features import TupleDataset
+#         from torch.utils import data as torch_data
+        
+#         # Create datasets from loaded data
+#         train_dataset = TupleDataset(train, train_labels)
+#         valid_dataset = TupleDataset(valid, valid_labels)
+#         test_dataset = TupleDataset(test, test_labels)
+        
+#         # Create data loaders
+#         train_it = torch_data.DataLoader(
+#             train_dataset,
+#             batch_size=self.batch_size,
+#             shuffle=self.shuffle_train,
+#             num_workers=0,
+#         )
+        
+#         valid_it = torch_data.DataLoader(
+#             valid_dataset,
+#             batch_size=self.batch_size,
+#             shuffle=False,
+#             num_workers=0,
+#         )
+        
+#         # Update trainer's data
+#         self.trainer.train_data = train_it
+#         self.trainer.validation_data = valid_it
+

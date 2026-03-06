@@ -51,6 +51,8 @@ class VectorsLoader:
         self.train_dataset = train_dataset
         self.val_dataset = val_dataset
         self.test_dataset = test_dataset
+        #TODO: remove hardcoding!
+        self.load_epoch_data_path_template = "/home/elena/emcomm/emcomm_captions/epoch_datasets/data_3_distractors_0_epoch.npz"
 
         self.dump_data_folder = (
             pathlib.Path(dump_data_folder) if dump_data_folder is not None else None
@@ -79,6 +81,14 @@ class VectorsLoader:
         train, train_labels = data["train"], data["train_labels"]
         valid, valid_labels = data["valid"], data["valid_labels"]
         test, test_labels = data["test"], data["test_labels"]
+
+        # # Convert to float32 to ensure features are float not double
+        train = train.astype(np.float32)
+        valid = valid.astype(np.float32)
+        test = test.astype(np.float32)
+
+        print(test[0].shape)
+        print(train_labels[1].shape)
 
         # train valid and test are of shape b_size X n_distractors+1 X n_features
         self.train_samples = train.shape[0]
@@ -248,6 +258,11 @@ class VectorsLoader:
                 test = (np.array([]), np.array([]))
         elif self.load_data_path:
             train, valid, test = self.load_data(self.load_data_path)
+        elif self.load_epoch_data_path_template:
+            # For curriculum learning with epoch-specific data loading
+            train, valid, test = self.load_data(
+                self.load_epoch_data_path_template
+            )
         else:
             raise ValueError(
                 "Either train_dataset, val_dataset, test_dataset must be provided, "

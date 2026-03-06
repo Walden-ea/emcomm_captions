@@ -81,6 +81,18 @@ def _populate_parser(parser):
         help="Path to .npz data file to load",
     )
     input_data.add_argument(
+        "--load_epoch_data_path_template",
+        type=str,
+        default=None,
+        help="Path template to load pre-shuffled epoch-specific .npz data files (e.g., '/path/data_3_distractors_{epoch}_epoch.npz' where {epoch} is replaced with epoch number)",
+    )
+    # input_data.add_argument(
+    #     "--load_epoch_npz_path_template",
+    #     type=str,
+    #     default=None,
+    #     help="Path template to load pre-shuffled epoch-specific .npz data files (e.g., '/path/data_3_distractors_{num_epoch}_epoch.npz' where {num_epoch} is replaced with epoch number)",
+    # )
+    input_data.add_argument(
         "--train_dataset_path",
         type=str,
         default=None,
@@ -293,6 +305,11 @@ def check_args(args):
     assert not (
         args.load_data_path and args.dump_data_folder
     ), "Cannot set folder to dump data while setting path to vectors to be loaded. Are you trying to dump the same vectors that you are loading?"
+
+    # can't set epoch data loading and data dumping at the same time
+    assert not (
+        args.load_epoch_data_path_template and args.dump_data_folder
+    ), "Cannot set folder to dump data while using epoch-specific data loading."
 
     # can't set dataset paths and dump_data_folder at the same time
     assert not (

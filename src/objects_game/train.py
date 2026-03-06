@@ -30,6 +30,8 @@ from src.objects_game.src.util import (
     entropy,
     mutual_info,
     DataRegeneratorCallback,
+    EpochDataLoaderCallback,
+    # EpochNpzLoaderCallback,
 )
 
 
@@ -202,8 +204,19 @@ def main(params):
             best_checkpoint = callback
             break
     
-    # Add data regenerator callback if using a data_loader
-    if data_loader is not None:
+    # Add epoch-specific data loader callbacks
+    # if opts.load_epoch_npz_path_template:
+    #     print(f"Using epoch-specific NPZ data loading from: {opts.load_epoch_npz_path_template}")
+    #     callbacks.append(EpochNpzLoaderCallback(
+    #         opts.load_epoch_npz_path_template,
+    #         batch_size=opts.batch_size,
+    #         shuffle_train=opts.shuffle_train_data
+    #     ))
+    if opts.load_epoch_data_path_template:
+        print(f"Using epoch-specific curriculum data loading from: {opts.load_epoch_data_path_template}")
+        callbacks.append(EpochDataLoaderCallback(data_loader, opts.load_epoch_data_path_template))
+    # Otherwise add data regenerator callback if using a data_loader
+    elif data_loader is not None:
         callbacks.append(DataRegeneratorCallback(data_loader))
     
     trainer = Trainer(
