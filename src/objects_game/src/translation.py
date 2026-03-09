@@ -83,15 +83,15 @@ class TransformerDecoder(nn.Module):
         self.emb = nn.Embedding(vocab_size, emb_dim, padding_idx=pad_id)
         self.pos_enc = nn.Parameter(self._positional_encoding(5000, emb_dim))
         
-decoder_layer = nn.TransformerDecoderLayer(
-    d_model=emb_dim,
-    nhead=num_heads,
-    dim_feedforward=hid_dim,
-    dropout=dropout,
-    batch_first=True,
-    activation="relu"
-)
-self.transformer = nn.TransformerDecoder(decoder_layer, num_layers=num_layers)
+        decoder_layer = nn.TransformerDecoderLayer(
+            d_model=emb_dim,
+            nhead=num_heads,
+            dim_feedforward=hid_dim,
+            dropout=dropout,
+            batch_first=True,
+            activation="relu"
+        )
+        self.transformer = nn.TransformerDecoder(decoder_layer, num_layers=num_layers)
         self.fc = nn.Linear(emb_dim, vocab_size)
         self.pad_id = pad_id
 
