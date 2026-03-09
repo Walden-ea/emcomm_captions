@@ -320,6 +320,41 @@ Batch size cannot be smaller than any split size;\nGot batch size {self.batch_si
 
         return train_it, validation_it, test_it
 
+    def get_iterators_load(self, load_data_path):
+        train, valid, test = self.load_data(load_data_path)
+        assert (
+            self.train_samples >= self.batch_size
+            and self.validation_samples >= self.batch_size
+            and self.test_samples >= self.batch_size
+        ), f"\
+Batch size cannot be smaller than any split size;\nGot batch size {self.batch_size}, \ntrain samples {self.train_samples},\n\nvalidation samples {self.validation_samples},\ntest samples {self.test_samples}\
+        "
+
+        train_dataset = TupleDataset(*train)
+        valid_dataset = TupleDataset(*valid)
+        test_dataset = TupleDataset(*test)
+
+        train_it = data.DataLoader(
+            train_dataset,
+            batch_size=self.batch_size,
+            collate_fn=self.collate,
+            drop_last=True,
+            shuffle=self.shuffle_train_data,
+        )
+        validation_it = data.DataLoader(
+            valid_dataset,
+            batch_size=self.batch_size,
+            collate_fn=self.collate,
+            drop_last=True,
+        )
+        test_it = data.DataLoader(
+            test_dataset,
+            batch_size=self.batch_size,
+            collate_fn=self.collate,
+            drop_last=True,
+        )
+        return train_it, validation_it, test_it
+
 
 class TupleDataset(data.Dataset):
     def __init__(self, tuples, target_idxs):

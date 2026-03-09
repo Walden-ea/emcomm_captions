@@ -1,4 +1,5 @@
 import csv
+import os
 import numpy as np
 import random
 import sacrebleu
@@ -118,6 +119,7 @@ def main(params):
     # Load semantic similarity model
     sim_model = SentenceTransformer("paraphrase-multilingual-mpnet-base-v2")
     sim_model.to(device)
+    os.makedirs(args.checkpoint_path, exist_ok=True)
     
     # Initialize models based on model_type
     if args.model_type == "rnn":
