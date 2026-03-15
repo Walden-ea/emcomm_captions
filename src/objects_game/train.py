@@ -19,6 +19,7 @@ import torch.utils.data
 from datasets import load_from_disk
 
 import egg.core as core
+from src.objects_game.src.gs_wrappers import *
 from egg.core.util import move_to, _set_seed
 from src.objects_game.src.archs import Receiver, Sender
 from src.objects_game.src.features import VectorsLoader, CurriculumVectorsLoader
@@ -180,7 +181,9 @@ def main(params):
             cell=opts.receiver_cell,
         )
 
-        game = core.SenderReceiverRnnGS(sender, receiver, loss)
+        game = SenderReceiverRnnGS(sender, receiver, loss)
+        print(game)
+        print(game.length_cost)
     else:
         raise NotImplementedError(f"Unknown training mode, {opts.mode}")
 

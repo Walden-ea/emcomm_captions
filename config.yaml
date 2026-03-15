@@ -1,8 +1,8 @@
 checkpoint_save_path: './checkpoints'
 vocab_size: 70
 n_distractors: 3
-n_epoch: 42
-max_len: 100
+n_epochs: 50
+max_len: 10 #15
 
 sender_lr: 0.01
 receiver_lr: 0.01
@@ -17,6 +17,13 @@ test_samples: 100
 
 evaluate: true
 shuffle_train_data: true
+# temperature: 3.0
+
+# --sender_embedding: 20
+# --receiver_embedding: 20
+
+# --receiver_hidden: 80
+# --sender_hidden: 80
 
 # load_data_path: /home/elena/emcomm/datasets/coco_npz/coco_full_train_val_152_resnet_5_distractors.npz
 # load_data_path: /home/elena/emcomm/emcomm_captions/epoch_datasets/epoch_0000/data.npz
@@ -26,8 +33,8 @@ shuffle_train_data: true
 # When set, data will be loaded fresh from this template at the start of each epoch.
 # Example: /home/elena/emcomm/emcomm_captions/epoch_datasets/data_3_distractors_{epoch}_epoch.npz
 # When using this, load_data_path should be commented out.
-load_epoch_data_path_template: /home/elena/emcomm/emcomm_captions/epoch_datasets/data_3_distractors_0_epoch.npz
-
+# load_epoch_data_path_template: /home/elena/emcomm/emcomm_captions/epoch_datasets_slower/data_3_distractors_{epoch}_epoch.npz
+load_epoch_data_path_template: /home/elena/emcomm/datasets/coco_npz/coco_full_train_val_152_resnet.npz
 # Dataset paths for message generation
 dataset_train_path: /home/elena/emcomm/datasets/coco_train_features_resnet_152
 dataset_val_path: /home/elena/emcomm/datasets/coco_val_features_resnet_152
@@ -35,4 +42,7 @@ dataset_test_path: null  # Set to path if available, null to skip
 
 wandb: true
 # wandb_name: test_sim_data_curr_npz
-wandb_name: test
+# wandb_name: 3_d_proper_sim_based_datasets_even_slower_annealing_data_from_fifth
+# wandb_name: 3_d_proper_sim_based_datasets_slow_annealing_data_last_checkpoint
+# wandb_name: 2x_embedding_size_increase_dim__rnn_3_d_proper_sim_based_datasets_higher_5_temp_no_step_loss_from_99th_epoch_20_len
+wandb_name: orig_data_as_close_to_orig_as_possible

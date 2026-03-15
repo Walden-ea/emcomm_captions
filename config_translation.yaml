@@ -1,7 +1,7 @@
-train_dataset_path: /home/elena/emcomm/emcomm_captions/checkpoints/3_distractors_proper/messages/coco_train_message_captions_3_distractors
-val_dataset_path: /home/elena/emcomm/emcomm_captions/checkpoints/3_distractors_proper/messages/coco_val_message_captions_3_distractors
+train_dataset_path: /home/elena/emcomm/emcomm_captions/checkpoints/3_d_proper_sim_based_datasets_slow_annealing_data_last_checkpoint/messages/coco_train_message_captions_3_distractors
+val_dataset_path: /home/elena/emcomm/emcomm_captions/checkpoints/3_d_proper_sim_based_datasets_slow_annealing_data_last_checkpoint/messages/coco_val_message_captions_3_distractors
 test_dataset_path: null
-checkpoint_path: /home/elena/emcomm/emcomm_captions/checkpoints/3_distractors_proper/translation
+checkpoint_path: /home/elena/emcomm/emcomm_captions/checkpoints/3_d_proper_sim_based_datasets_slow_annealing_data_last_checkpoint/translation
 test_only: false
 
 model_type: rnn
@@ -26,4 +26,4 @@ scheduler_factor: 0.9
 seed: 42
 
 wandb_project: EmComm-Caption-Translator
-wandb_name: 3_distr_check
+wandb_name: 3_distr_slower_curr_much_later_epoch

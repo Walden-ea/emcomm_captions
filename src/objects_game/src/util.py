@@ -239,7 +239,7 @@ class EpochDataLoaderCallback(Callback):
     def on_epoch_begin(self, epoch: int):
         """Load epoch-specific data file at the start of each epoch."""
         # Replace {epoch} placeholder in the template with the actual epoch number
-        epoch_data_path = self.epoch_data_path_template.format(epoch=min((epoch//2)+5, 49))
+        epoch_data_path = self.epoch_data_path_template.format(epoch=min(((epoch//2)+99), 99))
         
         print(f"Loading epoch-specific data from: {epoch_data_path}")
         train_it, val_it, test_it = self.data_loader.get_iterators_load(epoch_data_path)

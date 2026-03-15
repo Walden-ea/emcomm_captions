@@ -93,9 +93,9 @@ n_distractors = 3
 epoch = 0  # Set your curriculum learning epoch here
 test_tuples, test_labels = create_exhaustive_tuples(np.array(ds_test["features"]), n_distractors=n_distractors, epoch=epoch, shuffle=True, seed=42)
 valid_tuples, valid_labels = create_exhaustive_tuples(np.array(ds_val["features"]), n_distractors=n_distractors, epoch=0, shuffle=True, seed=42)
-num_epochs = 2
+num_epochs = 100
 print('doing train data now: ')
-for epoch in range(0, num_epochs):
+for epoch in range(50, num_epochs):
     train_tuples, train_labels = create_exhaustive_tuples(np.array(ds_train["features"]), n_distractors=n_distractors, epoch=epoch, shuffle=True, seed=42)
     np.savez_compressed(
     f"/home/elena/emcomm/emcomm_captions/epoch_datasets_slower/data_{n_distractors}_distractors_{epoch}_epoch.npz",
