@@ -1,24 +1,24 @@
-train_dataset_path: /home/elena/emcomm/emcomm_captions/checkpoints/3_d_proper_sim_based_datasets_slow_annealing_data_last_checkpoint/messages/coco_train_message_captions_3_distractors
-val_dataset_path: /home/elena/emcomm/emcomm_captions/checkpoints/3_d_proper_sim_based_datasets_slow_annealing_data_last_checkpoint/messages/coco_val_message_captions_3_distractors
+train_dataset_path: /home/elena/emcomm/emcomm_captions/checkpoints/2x_embedding_size_increase_dim__rnn_3_d_proper_sim_based_datasets_higher_5_temp_no_step_loss_from_90th_epoch_20_len/messages/coco_train_message_captions_3_distractors
+val_dataset_path: /home/elena/emcomm/emcomm_captions/checkpoints/2x_embedding_size_increase_dim__rnn_3_d_proper_sim_based_datasets_higher_5_temp_no_step_loss_from_90th_epoch_20_len/messages/coco_val_message_captions_3_distractors
 test_dataset_path: null
-checkpoint_path: /home/elena/emcomm/emcomm_captions/checkpoints/3_d_proper_sim_based_datasets_slow_annealing_data_last_checkpoint/translation
+checkpoint_path: /home/elena/emcomm/emcomm_captions/checkpoints/2x_embedding_size_increase_dim__rnn_3_d_proper_sim_based_datasets_higher_5_temp_no_step_loss_from_90th_epoch_20_len/translation
 test_only: false
 
-model_type: rnn
+model_type: transformer
 src_vocab_size: 71
 
 emb_dim: 256
 hid_dim: 512
 enc_num_layers: 2
 dec_num_layers: 2
-num_heads: 8
+num_heads: 2
 dropout: 0.0
 pad_id: 70
 
 batch_size: 512
 lr_enc: 0.001
 lr_dec: 0.001
-num_epochs: 50
+num_epochs: 25
 patience: 10
 scheduler_patience: 20
 scheduler_factor: 0.9
@@ -26,4 +26,4 @@ scheduler_factor: 0.9
 seed: 42
 
 wandb_project: EmComm-Caption-Translator
-wandb_name: 3_distr_slower_curr_much_later_epoch
+wandb_name: test_90th_epoch_on_97acc_tf

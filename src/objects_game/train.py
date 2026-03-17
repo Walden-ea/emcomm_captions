@@ -181,7 +181,7 @@ def main(params):
             cell=opts.receiver_cell,
         )
 
-        game = SenderReceiverRnnGS(sender, receiver, loss)
+        game = core.SenderReceiverRnnGS(sender, receiver, loss)
         print(game)
         print(game.length_cost)
     else:

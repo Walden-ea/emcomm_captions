@@ -55,8 +55,25 @@ def init_game_from_checkpoint(checkpoint_path, device):
     checkpoint = torch.load(checkpoint_path, weights_only=False)
     
     # Reconstruct options from checkpoint
-    OptsNamedTuple = namedtuple('Opts', checkpoint['opts'].keys())
-    opts = OptsNamedTuple(*checkpoint['opts'].values())
+    # print(checkpoint['opts'])
+    # for k in checkpoint['opts'].keys():
+    #     c = k.lstrip('-').replace('-', '_')
+    #     print(k, "->", c)
+    # # clean_keys = [k.lstrip('-').replace('-', '_') for k in checkpoint['opts'].keys()]
+    # clean_opts = {}
+    # for k, v in checkpoint['opts'].items():
+    #     key = k.lstrip('-').replace('-', '_')
+    #     if key not in clean_opts:
+    #         clean_opts[key] = v
+
+    clean_opts = {k:v for k,v in checkpoint['opts'].items() if not k.startswith('--')}
+    # clean_opts['sender_embedding'] = checkpoint['opts']['--sender_embedding']
+    # clean_opts['reciever_embedding'] = checkpoint['opts']['--sender_embedding']
+    # clean_opts['sender_hidden'] = checkpoint['opts']['--sender_embedding']
+    # clean_opts['reciever_hidden'] = checkpoint['opts']['--sender_embedding']
+    print(clean_opts)
+    OptsNamedTuple = namedtuple('Opts', clean_opts.keys())
+    opts = OptsNamedTuple(*clean_opts.values())
     
     # Initialize data loader to get number of features
     data_loader = VectorsLoader(

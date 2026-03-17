@@ -510,9 +510,6 @@ class SenderReceiverRnnGS(nn.Module):
                 labels,
                 aux_input,
             )
-            min_len = 15
-
-
                 # message[:, step, 0] = 0.0
             eos_mask = message[:, step, 0]  # always eos == 0
 
