@@ -52,7 +52,9 @@ class VectorsLoader:
         self.val_dataset = val_dataset
         self.test_dataset = test_dataset
         #TODO: remove hardcoding!
-        self.load_epoch_data_path_template = "/home/elena/emcomm/emcomm_captions/epoch_datasets/data_3_distractors_0_epoch.npz"
+        # self.load_epoch_data_path_template = "/home/elena/emcomm/emcomm_captions/epoch_datasets/data_3_distractors_0_epoch.npz"
+        # self.load_epoch_data_path_template = "/home/elena/emcomm/emcomm_captions/epoch_datasets_test_val_only/data_3_distractors_10000_epoch.npz"
+        self.load_epoch_data_path_template = '/home/elena/emcomm/emcomm_captions/winoground_epochs/data_3_distractors_100_epoch.npz'
 
         self.dump_data_folder = (
             pathlib.Path(dump_data_folder) if dump_data_folder is not None else None

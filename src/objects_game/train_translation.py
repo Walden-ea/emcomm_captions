@@ -174,6 +174,7 @@ def main(params):
         )
     else:
         # Load datasets for training/validation
+        print(f'Loading data from: {args.train_dataset_path}')
         dataset = load_from_disk(args.train_dataset_path)
         val_test_dataset = load_from_disk(args.val_dataset_path)
         splits = val_test_dataset.train_test_split(test_size=0.5, seed=args.seed)

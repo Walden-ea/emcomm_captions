@@ -245,7 +245,7 @@ class EpochDataLoaderCallback(Callback):
         train_it, val_it, test_it = self.data_loader.get_iterators_load(epoch_data_path)
 
         self.trainer.train_data = train_it
-        self.trainer.validation_data = val_it
+        # self.trainer.validation_data = val_it
         # # Load the NPZ file using the data_loader's load_data method
         # train, valid, test = self.data_loader.load_data(epoch_data_path)
         
