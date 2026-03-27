@@ -33,15 +33,18 @@ def create_pairwise_tuples(ds, n_distractors=3, epoch=0, shuffle=True, seed=42):
     count = 0
     total_sim = 0.0
     total_paired_sim = 0.0
+    i=0
 
     def build_tuple(target_vec, paired_vec, exclude_indices):
         # candidates excluding target & its pair
-        nonlocal total_sim, total_paired_sim, count
+        nonlocal total_sim, total_paired_sim, count, i
 
         available_indices = np.setdiff1d(np.arange(num_total), exclude_indices)
 
         n_candidates = min(n_distractors + epoch, len(available_indices))
-        print(f"Num candidates: {n_candidates}")
+        if i==0:
+            print(f"Num candidates: {n_candidates}")
+            i+=1
 
         sampled = rng.choice(available_indices, size=n_candidates, replace=False)
         candidate_vectors = all_features[sampled]
@@ -106,8 +109,6 @@ def create_pairwise_tuples(ds, n_distractors=3, epoch=0, shuffle=True, seed=42):
     return np.array(tuples), np.array(labels)
 
 
-
-
 # %%
 n_distractors = 3
 # epoch = 0  # Set your curriculum learning epoch here
@@ -137,24 +138,119 @@ n_distractors = 3
 #     n_distractors=3
 # )
 
-train_tuples, train_labels = create_pairwise_tuples(
+def create_exhaustive_tuples(features, n_distractors=3, epoch=0, shuffle=True, seed=42):
+    """
+    Each object is used once as target.
+    Distractors are selected based on semantic similarity with curriculum learning.
+    
+    The number of candidate distractors increases with epoch: n_distractors + epoch*2
+    Then the n_distractors closest vectors by cosine similarity are selected.
+    
+    Args:
+        features: numpy array of shape (n_samples, n_features)
+        n_distractors: number of distractors per tuple
+        epoch: curriculum learning epoch (affects difficulty)
+        shuffle: whether to randomly shuffle tuple positions
+        seed: random seed for reproducibility
+    """
+    from sklearn.metrics.pairwise import cosine_similarity
+    
+    num_objects = features.shape[0]
+    rng = np.random.default_rng(seed + epoch)  # Different RNG per epoch
+
+    tuples = []
+    labels = []
+    total_sim = 0.0
+    count = 0
+
+    all_indices = np.arange(num_objects)
+
+    for i in tqdm(range(num_objects)):
+        # Get all non-target indices
+        non_target_indices = np.concatenate([
+            np.arange(i),
+            np.arange(i + 1, num_objects)
+        ])
+        
+        # Number of candidates increases with epoch: n_distractors + epoch*2
+        n_candidates = min(
+            n_distractors + epoch,
+            len(non_target_indices)
+        )
+        if i ==1:
+            print(f"N candidates: {n_candidates}")
+        
+        # Sample candidate indices from non-target vectors
+        # print(n_candidates)
+        sampled_candidate_positions = rng.choice(
+            np.arange(len(non_target_indices)),
+            size=n_candidates,
+            replace=False
+        )
+        sampled_candidate_indices = non_target_indices[sampled_candidate_positions]
+        
+        # Compute cosine similarity between target and sampled candidates
+        target_vector = features[i:i+1]
+        candidate_vectors = features[sampled_candidate_indices]
+        similarities = cosine_similarity(target_vector, candidate_vectors).flatten()
+        
+        # Select the n_distractors closest vectors by cosine similarity
+        closest_positions = np.argsort(-similarities)[:n_distractors]
+        distractor_idxs = sampled_candidate_indices[closest_positions]
+
+        target = features[i]
+        distractors = features[distractor_idxs]
+
+        tuple_vectors = np.vstack([target[None, :], distractors])
+        target_norm = target / np.linalg.norm(target)
+        distractors_norm = distractors / np.linalg.norm(distractors, axis=1, keepdims=True)
+
+        sims = distractors_norm @ target_norm
+        total_sim += sims.mean()
+        count += 1
+
+        if shuffle:
+            perm = rng.permutation(n_distractors + 1)
+            tuple_vectors = tuple_vectors[perm]
+            label = int(np.where(perm == 0)[0][0])
+        else:
+            label = 0
+
+        tuples.append(tuple_vectors)
+        labels.append(label)
+    print(f"Average anchor–distractor similarity: {total_sim / count:.4f}")
+    return np.array(tuples), np.array(labels)
+
+wg_tuples, wg_labels = create_pairwise_tuples(
     ds_wg,
     n_distractors=n_distractors,
-    epoch=100000,
+    epoch=9999999999999999,
     shuffle=True,
     seed=42
 )
 
-#     np.savez_compressed(
-#     f"/home/elena/emcomm/emcomm_captions/winoground_epochs/data_{n_distractors}_distractors_{epoch}_epoch.npz",
-#     train=train_tuples,
-#     train_labels=train_labels,
-#     valid=valid_tuples,
-#     valid_labels=valid_labels,
-#     test=test_tuples,
-#     test_labels=test_labels,
-#     n_distractors=3
-# )
+coc_easy_tuples, coco_easy_labels = create_exhaustive_tuples(
+    np.array(ds_val["features"]),
+    n_distractors=n_distractors,
+    epoch=0,
+    shuffle=True,
+    seed=42,
+)
+coco_hard_tuples, coco_hard_labels = create_exhaustive_tuples(
+    np.array(ds_val["features"]),
+    n_distractors=n_distractors,
+    epoch=99999999,
+    shuffle=True,
+    seed=42,
+)
 
-
-
+np.savez_compressed(
+f"/home/elena/emcomm/emcomm_captions/combined_val/data_{n_distractors}_distractors_combined_val.npz",
+    wg=wg_tuples,
+    wg_labels=wg_labels,
+    coco_easy=coc_easy_tuples,
+    coco_easy_labels=coco_easy_labels,
+    coco_hard=coco_hard_tuples,
+    coco_hard_labels=coco_hard_labels,
+    n_distractors=n_distractors
+)

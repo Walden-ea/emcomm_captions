@@ -22,7 +22,8 @@ import egg.core as core
 from src.objects_game.src.gs_wrappers import *
 from egg.core.util import move_to, _set_seed
 from src.objects_game.src.archs import Receiver, Sender
-from src.objects_game.src.features import VectorsLoader, CurriculumVectorsLoader
+from src.objects_game.src.features import VectorsLoader#, CurriculumVectorsLoader
+from src.objects_game.src.features_extended import MultiSplitVectorsLoader
 from src.objects_game.src.trainers import Trainer
 from src.objects_game.src.util import (
     compute_baseline_accuracy,
@@ -106,21 +107,22 @@ def main(params):
 
     # Initialize data loader
     if opts.distractor_dataset_type == "curricular":
-        data_loader = CurriculumVectorsLoader(
-            perceptual_dimensions=opts.perceptual_dimensions,
-            n_distractors=opts.n_distractors,
-            batch_size=opts.batch_size,
-            train_samples=opts.train_samples,
-            validation_samples=opts.validation_samples,
-            test_samples=opts.test_samples,
-            shuffle_train_data=opts.shuffle_train_data,
-            dump_data_folder=opts.dump_data_folder,
-            load_data_path=opts.load_data_path,
-            train_dataset=train_dataset,
-            val_dataset=val_dataset,
-            test_dataset=test_dataset,
-            seed=opts.data_seed,
-        )
+        raise NotImplementedError('that one is deprecated, sorry!')
+        # data_loader = CurriculumVectorsLoader(
+        #     perceptual_dimensions=opts.perceptual_dimensions,
+        #     n_distractors=opts.n_distractors,
+        #     batch_size=opts.batch_size,
+        #     train_samples=opts.train_samples,
+        #     validation_samples=opts.validation_samples,
+        #     test_samples=opts.test_samples,
+        #     shuffle_train_data=opts.shuffle_train_data,
+        #     dump_data_folder=opts.dump_data_folder,
+        #     load_data_path=opts.load_data_path,
+        #     train_dataset=train_dataset,
+        #     val_dataset=val_dataset,
+        #     test_dataset=test_dataset,
+        #     seed=opts.data_seed,
+        # )
     else:
         data_loader = VectorsLoader(
             perceptual_dimensions=opts.perceptual_dimensions,
@@ -139,6 +141,26 @@ def main(params):
         )
     train_data, validation_data, test_data = data_loader.get_iterators()
 
+    val_datasets_path = r"/home/elena/emcomm/emcomm_captions/combined_val/data_3_distractors_combined_val.npz"
+    val_loader = MultiSplitVectorsLoader(
+            perceptual_dimensions=opts.perceptual_dimensions,
+            n_distractors=opts.n_distractors,
+            batch_size=opts.batch_size,
+            train_samples=opts.train_samples,
+            validation_samples=opts.validation_samples,
+            test_samples=opts.test_samples,
+            shuffle_train_data=opts.shuffle_train_data,
+            dump_data_folder=opts.dump_data_folder,
+            load_data_path=val_datasets_path,
+            # load_epoch_data_path_template=val_datasets_path,
+            train_dataset=train_dataset,
+            val_dataset=val_dataset,
+            test_dataset=test_dataset,
+            seed=opts.data_seed,
+        )
+    val_iters_dict = val_loader.get_iterators()
+    print('val iters dict: ')
+    print(val_iters_dict)
 
     data_loader.upd_cl_options(opts)
 
@@ -198,7 +220,7 @@ def main(params):
         BestAndLastCheckpoint(os.path.join(opts.checkpoint_save_path, opts.wandb_name)),
         ]#,  PlateauCallback()]
     if opts.mode.lower() == "gs":
-        callbacks.append(core.TemperatureUpdater(agent=sender, decay=0.9, minimum=1))
+        callbacks.append(core.TemperatureUpdater(agent=sender, decay=0.9, minimum=2))
     
     # Track the best checkpoint callback to extract best validation loss
     best_checkpoint = None
@@ -227,6 +249,7 @@ def main(params):
         optimizer=optimizer,
         train_data=train_data,
         validation_data=validation_data,
+        additional_validation_splits=val_iters_dict,
         callbacks=callbacks,
         opts=opts
     )

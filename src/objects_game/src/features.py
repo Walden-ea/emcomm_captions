@@ -89,8 +89,6 @@ class VectorsLoader:
         valid = valid.astype(np.float32)
         test = test.astype(np.float32)
 
-        print(test[0].shape)
-        print(train_labels[1].shape)
 
         # train valid and test are of shape b_size X n_distractors+1 X n_features
         self.train_samples = train.shape[0]
@@ -262,6 +260,7 @@ class VectorsLoader:
             train, valid, test = self.load_data(self.load_data_path)
         elif self.load_epoch_data_path_template:
             # For curriculum learning with epoch-specific data loading
+            print(f'Loading default data from: {self.load_epoch_data_path_template}')
             train, valid, test = self.load_data(
                 self.load_epoch_data_path_template
             )
@@ -374,134 +373,134 @@ class TupleDataset(data.Dataset):
         return self.list_of_tuples[idx], self.target_idxs[idx]
 
 
-class CurriculumVectorsLoader(VectorsLoader):
-    """Vector loader that implements curriculum learning through distractor difficulty.
+# class CurriculumVectorsLoader(VectorsLoader):
+#     """Vector loader that implements curriculum learning through distractor difficulty.
     
-    Instead of selecting random distractors, this loader selects distractors based on
-    cosine similarity to the target vector. The number of distractors increases with
-    epoch (n_distractors + epoch), and the closest ones by cosine similarity are selected,
-    creating a curriculum from easy (random) to hard (similar) distractors.
-    """
+#     Instead of selecting random distractors, this loader selects distractors based on
+#     cosine similarity to the target vector. The number of distractors increases with
+#     epoch (n_distractors + epoch), and the closest ones by cosine similarity are selected,
+#     creating a curriculum from easy (random) to hard (similar) distractors.
+#     """
     
-    def __init__(
-        self,
-        perceptual_dimensions=[4, 4, 4, 4, 4],
-        n_distractors=1,
-        batch_size=32,
-        train_samples=128000,
-        validation_samples=4096,
-        test_samples=1024,
-        shuffle_train_data=False,
-        dump_data_folder=None,
-        load_data_path=None,
-        train_dataset=None,
-        val_dataset=None,
-        test_dataset=None,
-        seed=None,
-        n_epochs=100,
-    ):
-        super().__init__(
-            perceptual_dimensions=perceptual_dimensions,
-            n_distractors=n_distractors,
-            batch_size=batch_size,
-            train_samples=train_samples,
-            validation_samples=validation_samples,
-            test_samples=test_samples,
-            shuffle_train_data=shuffle_train_data,
-            dump_data_folder=dump_data_folder,
-            load_data_path=load_data_path,
-            train_dataset=train_dataset,
-            val_dataset=val_dataset,
-            test_dataset=test_dataset,
-            seed=seed,
-        )
-        self.n_epochs = n_epochs
-        self.current_epoch = 0
+#     def __init__(
+#         self,
+#         perceptual_dimensions=[4, 4, 4, 4, 4],
+#         n_distractors=1,
+#         batch_size=32,
+#         train_samples=128000,
+#         validation_samples=4096,
+#         test_samples=1024,
+#         shuffle_train_data=False,
+#         dump_data_folder=None,
+#         load_data_path=None,
+#         train_dataset=None,
+#         val_dataset=None,
+#         test_dataset=None,
+#         seed=None,
+#         n_epochs=100,
+#     ):
+#         super().__init__(
+#             perceptual_dimensions=perceptual_dimensions,
+#             n_distractors=n_distractors,
+#             batch_size=batch_size,
+#             train_samples=train_samples,
+#             validation_samples=validation_samples,
+#             test_samples=test_samples,
+#             shuffle_train_data=shuffle_train_data,
+#             dump_data_folder=dump_data_folder,
+#             load_data_path=load_data_path,
+#             train_dataset=train_dataset,
+#             val_dataset=val_dataset,
+#             test_dataset=test_dataset,
+#             seed=seed,
+#         )
+#         self.n_epochs = n_epochs
+#         self.current_epoch = 0
 
-    def set_epoch(self, epoch):
-        """Set the current epoch to allow curriculum progression."""
-        self.current_epoch = epoch
+#     def set_epoch(self, epoch):
+#         """Set the current epoch to allow curriculum progression."""
+#         self.current_epoch = epoch
 
-    def _fill_split_from_dataset_curriculum(self, all_vectors):
-        """Create tuples with curriculum learning for distractors.
+#     def _fill_split_from_dataset_curriculum(self, all_vectors):
+#         """Create tuples with curriculum learning for distractors.
         
-        Uses cosine similarity to select distractors from sampled candidates.
-        For each target, samples n_distractors + current_epoch candidate vectors,
-        computes similarity only on those candidates, and selects the closest ones.
-        This creates a curriculum where early epochs have easier (more random) 
-        distractors and later epochs have harder (more similar) distractors.
+#         Uses cosine similarity to select distractors from sampled candidates.
+#         For each target, samples n_distractors + current_epoch candidate vectors,
+#         computes similarity only on those candidates, and selects the closest ones.
+#         This creates a curriculum where early epochs have easier (more random) 
+#         distractors and later epochs have harder (more similar) distractors.
         
-        Args:
-            all_vectors: numpy array of shape (n_samples, n_features)
+#         Args:
+#             all_vectors: numpy array of shape (n_samples, n_features)
             
-        Returns:
-            tuple of (split_data, target_idxs)
-            - split_data: numpy array of shape (n_samples, n_distractors+1, n_features)
-            - target_idxs: numpy array of shape (n_samples,) with values 0 to n_distractors
-        """
-        n_samples = len(all_vectors)
-        tuple_dim = self.n_distractors + 1
+#         Returns:
+#             tuple of (split_data, target_idxs)
+#             - split_data: numpy array of shape (n_samples, n_distractors+1, n_features)
+#             - target_idxs: numpy array of shape (n_samples,) with values 0 to n_distractors
+#         """
+#         n_samples = len(all_vectors)
+#         tuple_dim = self.n_distractors + 1
         
-        # Pre-allocate output array
-        split_list = np.zeros((n_samples, tuple_dim, all_vectors.shape[1]), dtype=all_vectors.dtype)
+#         # Pre-allocate output array
+#         split_list = np.zeros((n_samples, tuple_dim, all_vectors.shape[1]), dtype=all_vectors.dtype)
         
-        # Assign random target positions for each sample
-        target_idxs = self.random_state.randint(0, tuple_dim, n_samples)
+#         # Assign random target positions for each sample
+#         target_idxs = self.random_state.randint(0, tuple_dim, n_samples)
         
-        # Place all targets at once
-        split_list[np.arange(n_samples), target_idxs] = all_vectors
+#         # Place all targets at once
+#         split_list[np.arange(n_samples), target_idxs] = all_vectors
         
-        # Fill distractor positions with curriculum learning
-        for target_idx in range(n_samples):
-            target_pos = target_idxs[target_idx]
+#         # Fill distractor positions with curriculum learning
+#         for target_idx in range(n_samples):
+#             target_pos = target_idxs[target_idx]
             
-            # Get non-target indices
-            non_target_indices = np.concatenate([
-                np.arange(target_idx),
-                np.arange(target_idx + 1, n_samples)
-            ])
+#             # Get non-target indices
+#             non_target_indices = np.concatenate([
+#                 np.arange(target_idx),
+#                 np.arange(target_idx + 1, n_samples)
+#             ])
             
-            # Number of candidates increases with epoch
-            n_candidates = min(
-                self.n_distractors + self.current_epoch*2,
-                len(non_target_indices)
-            )
+#             # Number of candidates increases with epoch
+#             n_candidates = min(
+#                 self.n_distractors + self.current_epoch*2,
+#                 len(non_target_indices)
+#             )
             
-            # Sample candidate distractors randomly
-            sampled_candidate_indices = self.random_state.choice(
-                non_target_indices,
-                size=n_candidates,
-                replace=False
-            )
+#             # Sample candidate distractors randomly
+#             sampled_candidate_indices = self.random_state.choice(
+#                 non_target_indices,
+#                 size=n_candidates,
+#                 replace=False
+#             )
             
-            # Get the target vector
-            target_vector = all_vectors[target_idx:target_idx + 1]  # Keep 2D shape
+#             # Get the target vector
+#             target_vector = all_vectors[target_idx:target_idx + 1]  # Keep 2D shape
             
-            # Get the sampled candidates
-            sampled_candidates = all_vectors[sampled_candidate_indices]
+#             # Get the sampled candidates
+#             sampled_candidates = all_vectors[sampled_candidate_indices]
             
-            # Compute cosine similarity only between target and sampled candidates
-            # Shape: (1, n_candidates)
-            similarities = cosine_similarity(target_vector, sampled_candidates)[0]
+#             # Compute cosine similarity only between target and sampled candidates
+#             # Shape: (1, n_candidates)
+#             similarities = cosine_similarity(target_vector, sampled_candidates)[0]
             
-            # Select the n_distractors closest vectors from sampled candidates
-            if n_candidates > self.n_distractors:
-                # Get indices of closest distractors (descending similarity)
-                closest_positions = np.argsort(-similarities)[:self.n_distractors]
-                distractor_indices = sampled_candidate_indices[closest_positions]
-            else:
-                # Use all sampled candidates
-                distractor_indices = sampled_candidate_indices
+#             # Select the n_distractors closest vectors from sampled candidates
+#             if n_candidates > self.n_distractors:
+#                 # Get indices of closest distractors (descending similarity)
+#                 closest_positions = np.argsort(-similarities)[:self.n_distractors]
+#                 distractor_indices = sampled_candidate_indices[closest_positions]
+#             else:
+#                 # Use all sampled candidates
+#                 distractor_indices = sampled_candidate_indices
             
-            # Get positions to fill (all except target position)
-            fill_positions = [i for i in range(tuple_dim) if i != target_pos]
+#             # Get positions to fill (all except target position)
+#             fill_positions = [i for i in range(tuple_dim) if i != target_pos]
             
-            # Place all distractors
-            split_list[target_idx, fill_positions] = all_vectors[distractor_indices]
+#             # Place all distractors
+#             split_list[target_idx, fill_positions] = all_vectors[distractor_indices]
         
-        return (split_list, target_idxs)
+#         return (split_list, target_idxs)
 
-    def _fill_split_from_dataset(self, all_vectors):
-        """Override to use curriculum learning version."""
-        return self._fill_split_from_dataset_curriculum(all_vectors)
+#     def _fill_split_from_dataset(self, all_vectors):
+#         """Override to use curriculum learning version."""
+#         return self._fill_split_from_dataset_curriculum(all_vectors)
 

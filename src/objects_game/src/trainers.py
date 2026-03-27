@@ -67,15 +67,14 @@ class WandbLogger(CoreWandbLogger):
         wandb.init(project=project, id=run_id, name=run_name, **kwargs)
         wandb.config.update(opts)
 
-    def _log_metrics(self, phase: str, loss: float, logs: Interaction, epoch =None ):
+    def _log_metrics(self, phase: str, loss: float, logs: Interaction, epoch: float = None, log_loss: bool = True):
         """Helper for logging losses and auxiliary metrics."""
-        metrics = {f"{phase}/loss": loss} 
+        metrics = {f"{phase}/loss": loss} if log_loss else {}
         if epoch is not None:
             metrics["epoch"] = epoch
         for k, v in logs.aux.items():
             metrics[f"{phase}/{k}"] = v.mean()
         self.log_to_wandb(metrics)
-        
     def on_batch_end(
         self, logs: Interaction, loss: float, batch_id: int, is_training: bool = True
     ):
@@ -87,10 +86,20 @@ class WandbLogger(CoreWandbLogger):
     def on_validation_end(self, loss: float, logs: Interaction, epoch: int):
         if self.trainer.distributed_context.is_leader:
             self._log_metrics("test", loss, logs, epoch)
+    
+    def on_validation_end_tagged(self, loss: float, logs: Interaction, epoch: int, tag='default'):
+        if self.trainer.distributed_context.is_leader:
+            self._log_metrics(f"test/{tag}", loss, logs, epoch, log_loss=False)
 
     def on_epoch_end(self, loss: float, logs: Interaction, epoch: int):
         if self.trainer.distributed_context.is_leader:
             self._log_metrics("train", loss, logs, epoch)
+
+    def log_train_hyperparams(self, hyperparam_dict: Dict[str, float], epoch: int):
+            if self.trainer.distributed_context.is_leader:
+                metrics = {f'train/{k}':v for k,v in hyperparam_dict.items()}
+                metrics["epoch"] = epoch
+                self.log_to_wandb(metrics)
 
 
 class Trainer(CoreTrainer):
@@ -106,6 +115,7 @@ class Trainer(CoreTrainer):
         opts,
         optimizer_scheduler: Optional[torch.optim.lr_scheduler._LRScheduler] = None,
         validation_data: Optional[DataLoader] = None,
+        additional_validation_splits: Optional[Dict[str, DataLoader]] = None,
         device: torch.device = None,
         callbacks: Optional[List[Callback]] = None,
         grad_norm: float = None,
@@ -137,6 +147,7 @@ class Trainer(CoreTrainer):
         common_opts = get_opts()
         self.opts = opts
         self.common_opts = common_opts
+        self.additional_validation_splits = additional_validation_splits
         
         if self.distributed_context.is_leader and common_opts.wandb:
             # assert (
@@ -144,3 +155,73 @@ class Trainer(CoreTrainer):
             # ), "tensorboard directory has to be specified"
             wandb_logger = WandbLogger(opts, run_name=opts.wandb_name)
             self.callbacks.append(wandb_logger)
+    def train(self, n_epochs):
+        for callback in self.callbacks:
+            callback.on_train_begin(self)
+
+        for epoch in range(self.start_epoch, n_epochs):
+            for callback in self.callbacks:
+                callback.on_epoch_begin(epoch + 1)
+
+            train_loss, train_interaction = self.train_epoch()
+
+            self.log_train_hyperparams(epoch)
+            for callback in self.callbacks:
+                callback.on_epoch_end(train_loss, train_interaction, epoch + 1)
+
+            validation_loss, validation_interaction = self.validate(epoch)
+
+            if self.should_stop:
+                for callback in self.callbacks:
+                    callback.on_early_stopping(
+                        train_loss,
+                        train_interaction,
+                        epoch + 1,
+                        validation_loss,
+                        validation_interaction,
+                    )
+                break
+
+        for callback in self.callbacks:
+            callback.on_train_end()
+    def validate(self, epoch):
+        validation_loss = validation_interaction = None
+        if (
+            self.validation_data is not None
+            and self.validation_freq > 0
+            and (epoch + 1) % self.validation_freq == 0
+        ):
+            for callback in self.callbacks:
+                callback.on_validation_begin(epoch + 1)
+            validation_loss, validation_interaction = self.eval()
+
+            for callback in self.callbacks:
+                callback.on_validation_end(
+                    validation_loss, validation_interaction, epoch + 1
+                )
+            self.validate_on_additional_splits(epoch)
+        return validation_loss, validation_interaction
+    
+    def validate_on_additional_splits(self, epoch):
+        for tag, split in self.additional_validation_splits.items():
+            validation_loss, validation_interaction = self.eval(split)
+            try:
+                wandb_cb = next(
+                    cb for cb in self.callbacks if isinstance(cb, WandbLogger)
+                )
+            except:
+                print('No WANDB callback found!')
+                return
+
+            wandb_cb.on_validation_end_tagged(
+                validation_loss, validation_interaction, epoch + 1, tag
+            )
+    def log_train_hyperparams(self, epoch):
+        try:
+            wandb_cb = next(
+                cb for cb in self.callbacks if isinstance(cb, WandbLogger)
+            )
+        except:
+            print('No WANDB callback found!')
+            return
+        wandb_cb.log_train_hyperparams({'temperature': self.game.sender.temperature}, epoch)
