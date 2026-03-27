@@ -67,9 +67,9 @@ class WandbLogger(CoreWandbLogger):
         wandb.init(project=project, id=run_id, name=run_name, **kwargs)
         wandb.config.update(opts)
 
-    def _log_metrics(self, phase: str, loss: float, logs: Interaction, epoch: float = None, log_loss: bool = True):
+    def _log_metrics(self, phase: str, loss: float, logs: Interaction, epoch: float = None):
         """Helper for logging losses and auxiliary metrics."""
-        metrics = {f"{phase}/loss": loss} if log_loss else {}
+        metrics = {f"{phase}/loss": loss}
         if epoch is not None:
             metrics["epoch"] = epoch
         for k, v in logs.aux.items():
@@ -89,7 +89,7 @@ class WandbLogger(CoreWandbLogger):
     
     def on_validation_end_tagged(self, loss: float, logs: Interaction, epoch: int, tag='default'):
         if self.trainer.distributed_context.is_leader:
-            self._log_metrics(f"test/{tag}", loss, logs, epoch, log_loss=False)
+            self._log_metrics(f"test/{tag}", loss, logs, epoch)
 
     def on_epoch_end(self, loss: float, logs: Interaction, epoch: int):
         if self.trainer.distributed_context.is_leader:
