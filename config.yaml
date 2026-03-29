@@ -1,7 +1,7 @@
 checkpoint_save_path: './checkpoints'
 vocab_size: 70
 n_distractors: 3
-n_epochs: 120
+n_epochs: 190
 max_len: 10
 
 sender_lr: 0.01
@@ -33,7 +33,7 @@ temperature: 5.0
 # When set, data will be loaded fresh from this template at the start of each epoch.
 # Example: /home/elena/emcomm/emcomm_captions/epoch_datasets/data_3_distractors_{epoch}_epoch.npz
 # When using this, load_data_path should be commented out.
-load_epoch_data_path_template: /home/elena/emcomm/emcomm_captions/epoch_datasets_slower/data_3_distractors_99_epoch.npz
+load_epoch_data_path_template: /home/elena/emcomm/emcomm_captions/epoch_datasets_slower/data_3_distractors_{epoch}_epoch.npz
 # load_epoch_data_path_template: /home/elena/emcomm/datasets/coco_npz/coco_full_train_val_152_resnet.npz
 # Dataset paths for message generation
 dataset_train_path: /home/elena/emcomm/datasets/coco_train_features_resnet_152
@@ -50,4 +50,4 @@ wandb: true
 # wandb_name: 2x_embedding_size_increase_dim__rnn_3_d_proper_sim_based_datasets_higher_5_temp_no_step_loss_from_90th_epoch_20_len
 # wandb_name: test
 # wandb_name: test_winoground_100_eval_best_max_val_10_len_99th_epoch_orig
-wandb_name: 99th_high_temp
+wandb_name: curr_high_temp

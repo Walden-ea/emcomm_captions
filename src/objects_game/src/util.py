@@ -235,11 +235,15 @@ class EpochDataLoaderCallback(Callback):
         """
         self.data_loader = data_loader
         self.epoch_data_path_template = epoch_data_path_template
+        self.curriculum = [0, 5, 10, 20, 30, 50, 60, 70, 80, 90] + [99]*7+[150]*8+[300]*9+[500]*10+[750]*11+[1000]*12+[1500]*13+[2000]*14+[3000]*15+[5000]*18+[7500]*22+[12000]*25
+        print(f'Curriculum length: {len(self.curriculum)}')
+        # print(f"Curriculum: {self.curriculum}")
+        # quit()
     
     def on_epoch_begin(self, epoch: int):
         """Load epoch-specific data file at the start of each epoch."""
         # Replace {epoch} placeholder in the template with the actual epoch number
-        epoch_data_path = self.epoch_data_path_template.format(epoch=min(((epoch//2)+99), 99))
+        epoch_data_path = self.epoch_data_path_template.format(epoch=self.curriculum[epoch-1] if epoch <= len(self.curriculum) else self.curriculum[-1])
         
         print(f"Loading epoch-specific data from: {epoch_data_path}")
         train_it, val_it, test_it = self.data_loader.get_iterators_load(epoch_data_path)
