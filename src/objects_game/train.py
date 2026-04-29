@@ -141,7 +141,7 @@ def main(params):
         )
     train_data, validation_data, test_data = data_loader.get_iterators()
 
-    val_datasets_path = r"/home/elena/emcomm/emcomm_captions/combined_val/data_3_distractors_combined_val.npz"
+    val_datasets_path = r"/home/elena/emcomm/emcomm_captions/combined_val/data_3_distractors_combined_with_noise_val.npz"
     val_loader = MultiSplitVectorsLoader(
             perceptual_dimensions=opts.perceptual_dimensions,
             n_distractors=opts.n_distractors,
@@ -220,7 +220,7 @@ def main(params):
         BestAndLastCheckpoint(os.path.join(opts.checkpoint_save_path, opts.wandb_name)),
         ]#,  PlateauCallback()]
     if opts.mode.lower() == "gs":
-        callbacks.append(core.TemperatureUpdater(agent=sender, decay=0.95, minimum=2.5))
+        callbacks.append(core.TemperatureUpdater(agent=sender, decay=0.93, minimum=2))
     
     # Track the best checkpoint callback to extract best validation loss
     best_checkpoint = None
