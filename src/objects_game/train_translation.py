@@ -1,4 +1,5 @@
 import csv
+from json import decoder
 import os
 import numpy as np
 import random
@@ -22,14 +23,20 @@ from datasets import load_from_disk
 
 def get_tokenizer_and_pad():
     """Load tokenizer and get pad ids."""
-    tgt_tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+    tgt_tokenizer = AutoTokenizer.from_pretrained("t5-small")
+    # tgt_tokenizer = AutoTokenizer.from_pretrained("bert-base-uncased")
+
     tgt_pad_id = tgt_tokenizer.pad_token_id
+    print('Special tokens:')
+    print(f"  BOS: {tgt_tokenizer.bos_token_id}")
+    print(f"  EOS: {tgt_tokenizer.eos_token_id}")
     return tgt_tokenizer, tgt_pad_id
 
 
 def collate(batch, pad_id, tokenizer):
     """Collate function that accepts pad_id and tokenizer as parameters."""
     src = [torch.tensor(b['message_truncated'], dtype=torch.long) for b in batch]
+    # print("src lengths:", [len(b['message_truncated']) for b in batch[:20]])
     src = pad_sequence(
         src,
         batch_first=True,
@@ -38,12 +45,13 @@ def collate(batch, pad_id, tokenizer):
     tgt = tokenizer(
         [b['captions'][0] for b in batch],
         padding=True,
-        return_tensors="pt"
+        return_tensors="pt",
+        add_special_tokens=True,
     )["input_ids"]
 
     return src, tgt
 
-def evaluate(encoder, decoder, loader, criterion, device, tokenizer, sim_model, model_type="rnn", csv_save_path=None):
+def evaluate(encoder, decoder, loader, criterion, device, tokenizer, sim_model, bos_id, model_type="rnn", csv_save_path=None):
     encoder.eval()
     decoder.eval()
 
@@ -59,15 +67,25 @@ def evaluate(encoder, decoder, loader, criterion, device, tokenizer, sim_model, 
                 logits, _, _ = decoder(tgt[:, :-1], h, c)
             else:  # transformer
                 encoder_output, _ = encoder(src)
-                logits, _, _ = decoder(tgt[:, :-1], encoder_output)
+                # logits, _, _ = decoder(tgt[:, :-1], encoder_output)
+                tgt_input = torch.cat(
+                    [torch.full((tgt.size(0), 1), bos_id, device=tgt.device), tgt[:, :-1]],
+                    dim=1
+                )
+                logits, _, _ = decoder(tgt_input, encoder_output)
 
+            # loss = criterion(
+            #     logits.reshape(-1, logits.size(-1)),
+            #     tgt[:, 1:].reshape(-1)
+            # )
             loss = criterion(
                 logits.reshape(-1, logits.size(-1)),
-                tgt[:, 1:].reshape(-1)
+                tgt.reshape(-1)
             )
             total_loss += loss.item()
 
             pred = logits.argmax(-1)
+            # tgt = tgt[torch.randperm(tgt.size(0))] # TEST BLEU
 
             hyps.extend(
                 tokenizer.batch_decode(
@@ -81,6 +99,9 @@ def evaluate(encoder, decoder, loader, criterion, device, tokenizer, sim_model, 
                     skip_special_tokens=True
                 )
             )
+
+            print(hyps[:5])
+            print(refs[:5])
         
     bleu = sacrebleu.corpus_bleu(
         hyps,
@@ -115,6 +136,12 @@ def main(params):
     
     # Load tokenizer
     tgt_tokenizer, tgt_pad_id = get_tokenizer_and_pad()
+    # bos_id = tgt_tokenizer.pad_token_id
+    if tgt_tokenizer.bos_token is None:
+        tgt_tokenizer.add_special_tokens({'bos_token': '<s>'})
+
+        bos_id = tgt_tokenizer.bos_token_id
+        print("BOS token id:", bos_id)
     
     # Load semantic similarity model
     sim_model = SentenceTransformer("paraphrase-multilingual-mpnet-base-v2")
@@ -272,6 +299,7 @@ def main(params):
             device, 
             tgt_tokenizer, 
             sim_model, 
+            bos_id=bos_id,
             model_type=args.model_type,
             csv_save_path="test_predictions.csv"
         )
@@ -293,16 +321,31 @@ def main(params):
             enc_opt.zero_grad()
             dec_opt.zero_grad()
 
+            # print("First target example:", tgt[0][:10])
+            # print("Decoded:", tgt_tokenizer.decode(tgt[0]))
+            # print("BOS token id:", tgt_tokenizer.bos_token_id)
+            # print("First token of tgt:", tgt[0, 0].item())
+            # print("Decoded first token:", tgt_tokenizer.decode([tgt[0, 0]]))
+
+
             if args.model_type == "rnn":
                 h, c = encoder(src)
                 logits, _, _ = decoder(tgt[:, :-1], h, c)
             else:  # transformer
                 encoder_output, _ = encoder(src)
-                logits, _, _ = decoder(tgt[:, :-1], encoder_output)
+                # logits, _, _ = decoder(tgt[:, :-1], encoder_output)
+                tgt_input = torch.cat(
+                    [torch.full((tgt.size(0), 1), bos_id, device=tgt.device), tgt[:, :-1]],
+                    dim=1
+                )
+                # print("tgt_input[0]:", tgt_input[0][:10])
+                # print("decoded:", tgt_tokenizer.decode(tgt_input[0]))
+
+                logits, _, _ = decoder(tgt_input, encoder_output)
 
             loss = criterion(
                 logits.reshape(-1, logits.size(-1)),
-                tgt[:, 1:].reshape(-1)
+                tgt.reshape(-1)
             )
 
             loss.backward()
@@ -318,7 +361,7 @@ def main(params):
 
         train_loss = total_loss / len(loader)
         val_loss, val_bleu, val_semantic_sim = evaluate(
-            encoder, decoder, val_loader, criterion, device, tgt_tokenizer, sim_model, model_type=args.model_type
+            encoder, decoder, val_loader, criterion, device, tgt_tokenizer, sim_model, bos_id=bos_id, model_type=args.model_type, 
         )
         sched_enc.step(val_loss)
         sched_dec.step(val_loss)

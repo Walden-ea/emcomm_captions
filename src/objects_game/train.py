@@ -220,7 +220,7 @@ def main(params):
         BestAndLastCheckpoint(os.path.join(opts.checkpoint_save_path, opts.wandb_name)),
         ]#,  PlateauCallback()]
     if opts.mode.lower() == "gs":
-        callbacks.append(core.TemperatureUpdater(agent=sender, decay=0.93, minimum=2))
+        callbacks.append(core.TemperatureUpdater(agent=sender, decay=0.95, minimum=2.5))
     
     # Track the best checkpoint callback to extract best validation loss
     best_checkpoint = None

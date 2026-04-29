@@ -1,7 +1,7 @@
 checkpoint_save_path: './checkpoints'
 vocab_size: 70
 n_distractors: 3
-n_epochs: 190
+n_epochs: 5
 max_len: 10
 
 sender_lr: 0.01
@@ -17,7 +17,7 @@ test_samples: 100
 
 evaluate: true
 shuffle_train_data: true
-temperature: 5.0
+temperature: 6.0
 
 # sender_embedding: 32
 # receiver_embedding: 32
@@ -50,4 +50,4 @@ wandb: true
 # wandb_name: 2x_embedding_size_increase_dim__rnn_3_d_proper_sim_based_datasets_higher_5_temp_no_step_loss_from_90th_epoch_20_len
 # wandb_name: test
 # wandb_name: test_winoground_100_eval_best_max_val_10_len_99th_epoch_orig
-wandb_name: curr_high_temp
+wandb_name: curr_only_5_epochs

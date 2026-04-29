@@ -60,6 +60,7 @@ class TransformerEncoder(nn.Module):
 
     def forward(self, src):
         # src: [B, T]
+        # print("src pad count:", (src == self.pad_id).sum())
         embedded = self.emb(src)  # [B, T, emb_dim]
         
         # Add positional encoding
@@ -80,7 +81,7 @@ class TransformerEncoder(nn.Module):
 class TransformerDecoder(nn.Module):
     def __init__(self, vocab_size, emb_dim, hid_dim, num_layers=2, pad_id=None, dropout=0.0, num_heads=8):
         super().__init__()
-        self.emb = nn.Embedding(vocab_size, emb_dim, padding_idx=pad_id)
+        self.emb = nn.Embedding(vocab_size+1, emb_dim, padding_idx=pad_id)
         self.pos_enc = nn.Parameter(self._positional_encoding(5000, emb_dim))
         
         decoder_layer = nn.TransformerDecoderLayer(
@@ -120,7 +121,9 @@ class TransformerDecoder(nn.Module):
         # Create padding masks
         tgt_key_padding_mask = (tgt == self.pad_id) if self.pad_id is not None else None
         memory_key_padding_mask = (torch.zeros(encoder_output.size(0), encoder_output.size(1), dtype=torch.bool).to(tgt.device))
-        
+        # print("tgt_key_padding_mask sum:", tgt_key_padding_mask.sum() if tgt_key_padding_mask is not None else None)
+        # print("memory_key_padding_mask sum:", memory_key_padding_mask.sum())
+
         # Pass through transformer decoder
         output = self.transformer(
             embedded,

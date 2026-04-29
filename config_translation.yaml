@@ -1,7 +1,7 @@
-train_dataset_path: /home/elena/emcomm/emcomm_captions/checkpoints/winoground_100_eval_best_max_val_10_len_99th_epoch_orig/messages/coco_train_message_captions_3_distractors
-val_dataset_path: /home/elena/emcomm/emcomm_captions/checkpoints/winoground_100_eval_best_max_val_10_len_99th_epoch_orig/messages/coco_val_message_captions_3_distractors
-test_dataset_path: null
-checkpoint_path: /home/elena/emcomm/emcomm_captions/checkpoints/winoground_100_eval_best_max_val_10_len_99th_epoch_orig/translation
+train_dataset_path: /home/elena/emcomm/emcomm_captions/checkpoints/curr_only_5_epochs/messages/coco_train_message_captions_3_distractors
+val_dataset_path: /home/elena/emcomm/emcomm_captions/checkpoints/curr_only_5_epochs/messages/coco_val_message_captions_3_distractors
+# test_dataset_path: /home/elena/emcomm/emcomm_captions/checkpoints/5000th_high_temp/messages/coco_val_message_captions_3_distractors
+checkpoint_path: /home/elena/emcomm/emcomm_captions/checkpoints/curr_only_5_epochs/translation_t5
 test_only: false
 
 model_type: transformer
@@ -15,7 +15,7 @@ num_heads: 2
 dropout: 0.0
 pad_id: 70
 
-batch_size: 512
+batch_size: 256
 lr_enc: 0.001
 lr_dec: 0.001
 num_epochs: 25
@@ -26,4 +26,5 @@ scheduler_factor: 0.9
 seed: 42
 
 wandb_project: EmComm-Caption-Translator
-wandb_name: winoground_99th_better_temp_tf_more_capacity
+wandb_name: only_5_epochs_full #best_protocol_fixed_msgs
+# latest_emcomm_fix_eval_BOS_add_s_t5_winoground_99th_better_temp_tf_more_capacity
