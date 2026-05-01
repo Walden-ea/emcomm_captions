@@ -247,6 +247,7 @@ class EpochDataLoaderCallback(Callback):
         
         print(f"Loading epoch-specific data from: {epoch_data_path}")
         train_it, val_it, test_it = self.data_loader.get_iterators_load(epoch_data_path)
+        
 
         self.trainer.train_data = train_it
         # self.trainer.validation_data = val_it

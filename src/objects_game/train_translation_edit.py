@@ -7,6 +7,7 @@ import sacrebleu
 import sys
 import torch
 import torch.nn as nn
+import torch.nn.functional as F
 from src.objects_game.src.translation import (
     Decoder, Encoder, TransformerDecoder, TransformerEncoder
 )
@@ -20,6 +21,68 @@ from sentence_transformers import SentenceTransformer, util
 
 from datasets import load_from_disk
 
+# def beam_search_decode(
+#     encoder,
+#     decoder,
+#     src,
+#     bos_id,
+#     eos_id,
+#     device,
+#     beam_size=5,
+#     max_len=50,
+# ):
+#     encoder.eval()
+#     decoder.eval()
+
+#     with torch.no_grad():
+#         memory, _ = encoder(src)
+
+#         B = src.size(0)
+
+#         # each batch item has its own beam
+#         sequences = [[([bos_id], 0.0)] for _ in range(B)]
+
+#         for _ in range(max_len):
+#             new_sequences = []
+
+#             for b in range(B):
+#                 all_candidates = []
+
+#                 for seq, score in sequences[b]:
+#                     if eos_id is not None and seq[-1] == eos_id:
+#                         all_candidates.append((seq, score))
+#                         continue
+
+#                     inp = torch.tensor(seq, device=device).unsqueeze(0)
+
+#                     logits, _, _ = decoder(inp, memory[b:b+1])
+
+#                     probs = F.log_softmax(logits[:, -1, :], dim=-1)
+
+#                     topk = torch.topk(probs, beam_size)
+
+#                     for i in range(beam_size):
+#                         token = topk.indices[0, i].item()
+#                         prob = topk.values[0, i].item()
+
+#                         candidate = (seq + [token], score + prob)
+#                         all_candidates.append(candidate)
+
+#                 # keep best beams
+#                 ordered = sorted(all_candidates, key=lambda x: x[1], reverse=True)
+#                 sequences[b] = ordered[:beam_size]
+
+#             # early stopping (optional)
+#             if all(
+#                 any(seq[-1] == eos_id for seq, _ in sequences[b])
+#                 for b in range(B)
+#             ):
+#                 break
+
+#         # final best sequences
+#         final_seqs = [sequences[b][0][0] for b in range(B)]
+
+#     return final_seqs
 
 def get_tokenizer_and_pad():
     """Load tokenizer and get pad ids."""
@@ -42,8 +105,10 @@ def collate(batch, pad_id, tokenizer):
         batch_first=True,
         padding_value=pad_id
     )
+    # print([b['captions'][0] for b in batch][0])
     tgt = tokenizer(
-        [b['captions'][0] for b in batch],
+        # [b['captions'][0] for b in batch],
+        [random.choice(b["captions"]).lower() for b in batch],
         padding=True,
         return_tensors="pt",
         add_special_tokens=True,
@@ -68,11 +133,24 @@ def evaluate(encoder, decoder, loader, criterion, device, tokenizer, sim_model, 
             else:  # transformer
                 encoder_output, _ = encoder(src)
                 # logits, _, _ = decoder(tgt[:, :-1], encoder_output)
-                tgt_input = torch.cat(
-                    [torch.full((tgt.size(0), 1), bos_id, device=tgt.device), tgt[:, :-1]],
-                    dim=1
-                )
-                logits, _, _ = decoder(tgt_input, encoder_output)
+            B = src.size(0)
+
+            bos = torch.full((B, 1), bos_id, device=device)
+            generated = bos
+
+            max_len = tgt.size(1)  # or fixed like 50
+
+            for _ in range(max_len):
+                logits, _, _ = decoder(generated, encoder_output)
+
+                next_token = logits[:, -1, :].argmax(dim=-1, keepdim=True)
+
+                generated = torch.cat([generated, next_token], dim=1)
+
+                # optional: stop if all EOS
+                if tokenizer.eos_token_id is not None:
+                    if (next_token == tokenizer.eos_token_id).all():
+                        break
 
             # loss = criterion(
             #     logits.reshape(-1, logits.size(-1)),
@@ -84,7 +162,8 @@ def evaluate(encoder, decoder, loader, criterion, device, tokenizer, sim_model, 
             )
             total_loss += loss.item()
 
-            pred = logits.argmax(-1)
+            # pred = logits.argmax(-1)
+            pred = generated
             # tgt = tgt[torch.randperm(tgt.size(0))] # TEST BLEU
 
             hyps.extend(
@@ -100,8 +179,8 @@ def evaluate(encoder, decoder, loader, criterion, device, tokenizer, sim_model, 
                 )
             )
 
-            print(hyps[:5])
-            print(refs[:5])
+            # print(hyps[:5])
+            # print(refs[:5])
         
     bleu = sacrebleu.corpus_bleu(
         hyps,
@@ -310,9 +389,10 @@ def main(params):
         print(f"Test Loss: {test_loss:.4f} | Test BLEU: {test_bleu:.2f} | Test Semantic Similarity: {test_semantic_sim:.4f}")
         return None
 
-    best_val_loss = float("inf")
+    # best_val_loss = float("inf")
+    best_val_metric = -float("inf")
     patience_ctr = 0
-
+    
     for epoch in range(args.num_epochs):
         encoder.train()
         decoder.train()
@@ -367,8 +447,9 @@ def main(params):
         val_loss, val_bleu, val_semantic_sim = evaluate(
             encoder, decoder, val_loader, criterion, device, tgt_tokenizer, sim_model, bos_id=bos_id, model_type=args.model_type, 
         )
-        sched_enc.step(val_loss)
-        sched_dec.step(val_loss)
+        monitor_metric = val_semantic_sim
+        sched_enc.step(-monitor_metric) 
+        sched_dec.step(-monitor_metric)
 
         wandb.log({
             "epoch": epoch,
@@ -384,9 +465,13 @@ def main(params):
         )
 
         # -------- early stopping --------
-        if val_loss < best_val_loss:
-            best_val_loss = val_loss
+        # if val_loss < best_val_loss:
+        #     best_val_loss = val_loss
+        #     patience_ctr = 0
+        if monitor_metric > best_val_metric:
+            best_val_metric = monitor_metric
             patience_ctr = 0
+            print(f"New best val metric: {best_val_metric:.4f}. Saving checkpoint.")
 
             # optional: save best model
             torch.save({
@@ -394,7 +479,7 @@ def main(params):
                 "decoder": decoder.state_dict(),
             }, f"{args.checkpoint_path}/checkpoint.pt")
 
-            wandb.log({"early_stop/best_val_loss": best_val_loss})
+            wandb.log({"early_stop/best_val_metric": best_val_metric})
         else:
             patience_ctr += 1
             wandb.log({"early_stop/patience": patience_ctr})
@@ -416,7 +501,7 @@ def main(params):
     
     wandb.finish()
     
-    return best_val_loss
+    return best_val_metric
 
 if __name__ == "__main__":
     if len(sys.argv) != 2:

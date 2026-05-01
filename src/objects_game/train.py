@@ -1,12 +1,9 @@
-# Copyright (c) Facebook, Inc. and its affiliates.
-
-# This source code is licensed under the MIT license found in the
-# LICENSE file in the root directory of this source tree.
-
 from __future__ import print_function
 
 import operator
 import os, glob
+
+import wandb
 
 # argument-handling helpers are located in a separate module
 from src.objects_game.helpers.train_argument_handling import get_params
@@ -141,6 +138,27 @@ def main(params):
         )
     train_data, validation_data, test_data = data_loader.get_iterators()
 
+    hard_test_data_path = "/home/elena/emcomm/emcomm_captions/epoch_datasets_slower/hard_test_data_dummy_train_3_distractors_1500_epoch.npz"
+    data_loader_test = VectorsLoader(
+            perceptual_dimensions=opts.perceptual_dimensions,
+            n_distractors=opts.n_distractors,
+            batch_size=opts.batch_size,
+            train_samples=opts.train_samples,
+            validation_samples=opts.validation_samples,
+            test_samples=opts.test_samples,
+            shuffle_train_data=opts.shuffle_train_data,
+            dump_data_folder=opts.dump_data_folder,
+            load_data_path=hard_test_data_path,
+            # train_dataset=train_dataset,
+            # val_dataset=val_dataset,
+            # test_dataset=test_dataset,
+            seed=opts.data_seed,
+        )
+    _, _, hard_test_data = data_loader_test.get_iterators()
+    test_data = hard_test_data
+
+
+
     val_datasets_path = r"/home/elena/emcomm/emcomm_captions/combined_val/data_3_distractors_combined_with_noise_val.npz"
     val_loader = MultiSplitVectorsLoader(
             perceptual_dimensions=opts.perceptual_dimensions,
@@ -161,6 +179,7 @@ def main(params):
     val_iters_dict = val_loader.get_iterators()
     print('val iters dict: ')
     print(val_iters_dict)
+    validation_data = val_iters_dict['coco_hard']
 
     data_loader.upd_cl_options(opts)
 
@@ -220,7 +239,7 @@ def main(params):
         BestAndLastCheckpoint(os.path.join(opts.checkpoint_save_path, opts.wandb_name)),
         ]#,  PlateauCallback()]
     if opts.mode.lower() == "gs":
-        callbacks.append(core.TemperatureUpdater(agent=sender, decay=0.93, minimum=2))
+        callbacks.append(core.TemperatureUpdater(agent=sender, decay=0.93, minimum=0.1))
     
     # Track the best checkpoint callback to extract best validation loss
     best_checkpoint = None
@@ -297,6 +316,12 @@ def main(params):
         print(f"mi sender inputs msgs {mutual_info(sender_inputs, messages)}")
         # print('shape of sender inputs and messages:')
         # print(np.ndarray(sender_inputs).shape)
+        # wandb.init(project='EmComm-Caption', name=opts.wandb_name)
+        # wandb.log({
+        #     "test_metrics/accuracy": accuracy,
+        #     "test_metrics/entropy": entropy(sender_inputs),
+        #     "test_metrics/mi": mutual_info(sender_inputs, messages),
+        # }, step=opts.n_epochs)
 
         if opts.dump_msg_folder:
             opts.dump_msg_folder.mkdir(exist_ok=True)
@@ -351,6 +376,8 @@ def main(params):
                 f.write(f"Unique messages produced by sender: {len(msg_dict.keys())}\n")
                 f.write(f"Messagses: 'msg' : msg_count: {str(sorted_msgs)}\n")
                 f.write(f"\nAccuracy: {accuracy}")
+                # import wandb
+
     
     return best_val_loss
 

@@ -15,6 +15,35 @@ from sklearn.metrics.pairwise import cosine_similarity
 
 from egg.zoo.objects_game.util import compute_binomial
 
+import numpy as np
+
+def anchor_similarity_stats(X: np.ndarray, anchor_idx: np.ndarray):
+    """
+    X: shape (n_samples, n_images, n_features)
+    anchor_idx: shape (n_samples,)
+    
+    Returns:
+        mean_sim, std_sim
+    """
+    n_samples, n_images, _ = X.shape
+
+    # Normalize features for cosine similarity
+    X_norm = X / np.linalg.norm(X, axis=-1, keepdims=True)
+
+    # Gather anchors: (n_samples, 1, n_features)
+    anchors = X_norm[np.arange(n_samples), anchor_idx][:, None, :]
+
+    # Cosine similarity with all images: (n_samples, n_images)
+    sims = np.sum(anchors * X_norm, axis=-1)
+
+    # Mask out anchors themselves
+    mask = np.ones_like(sims, dtype=bool)
+    mask[np.arange(n_samples), anchor_idx] = False
+
+    sims = sims[mask]  # flattened over all distractors
+
+    return sims.mean(), sims.std()
+
 
 class VectorsLoader:
     def __init__(
@@ -83,6 +112,7 @@ class VectorsLoader:
         train, train_labels = data["train"], data["train_labels"]
         valid, valid_labels = data["valid"], data["valid_labels"]
         test, test_labels = data["test"], data["test_labels"]
+        print(f'test sim and std: {anchor_similarity_stats(test, test_labels)}')
 
         # # Convert to float32 to ensure features are float not double
         train = train.astype(np.float32)
@@ -281,6 +311,7 @@ Batch size cannot be smaller than any split size;\nGot batch size {self.batch_si
         train_dataset = TupleDataset(*train)
         valid_dataset = TupleDataset(*valid)
         test_dataset = TupleDataset(*test)
+        print(f"train data len: {len(train_dataset)}, valid data len: {len(valid_dataset)}, test data len: {len(test_dataset)}")
 
         train_it = data.DataLoader(
             train_dataset,
@@ -334,6 +365,7 @@ Batch size cannot be smaller than any split size;\nGot batch size {self.batch_si
         train_dataset = TupleDataset(*train)
         valid_dataset = TupleDataset(*valid)
         test_dataset = TupleDataset(*test)
+        print(f"train data len: {len(train_dataset)}, valid data len: {len(valid_dataset)}, test data len: {len(test_dataset)}")
 
         train_it = data.DataLoader(
             train_dataset,

@@ -1,8 +1,8 @@
-train_dataset_path: /home/elena/emcomm/emcomm_captions/checkpoints/curr_only_5_epochs/messages/coco_train_message_captions_3_distractors
-val_dataset_path: /home/elena/emcomm/emcomm_captions/checkpoints/curr_only_5_epochs/messages/coco_val_message_captions_3_distractors
-# test_dataset_path: /home/elena/emcomm/emcomm_captions/checkpoints/5000th_high_temp/messages/coco_val_message_captions_3_distractors
-checkpoint_path: /home/elena/emcomm/emcomm_captions/checkpoints/curr_only_5_epochs/translation_t5
-test_only: false
+train_dataset_path: /home/elena/emcomm/emcomm_captions/checkpoints/proper_0th_epoch/messages/coco_train_message_captions_3_distractors
+val_dataset_path: /home/elena/emcomm/emcomm_captions/checkpoints/proper_0th_epoch/messages/coco_val_message_captions_3_distractors
+test_dataset_path: /home/elena/emcomm/emcomm_captions/checkpoints/proper_0th_epoch/messages/coco_test_message_captions_3_distractors
+checkpoint_path: /home/elena/emcomm/emcomm_captions/checkpoints/proper_0th_epoch/translation_t5_edit
+test_only: test
 
 model_type: transformer
 src_vocab_size: 71
@@ -18,13 +18,14 @@ pad_id: 70
 batch_size: 256
 lr_enc: 0.001
 lr_dec: 0.001
-num_epochs: 25
-patience: 10
+num_epochs: 50
+patience: 20
 scheduler_patience: 20
 scheduler_factor: 0.9
 
 seed: 42
 
 wandb_project: EmComm-Caption-Translator
-wandb_name: only_5_epochs_full #best_protocol_fixed_msgs
+wandb_name: 0th_fix_metric
+# dummy_change0th2 #only_5_epochs_full #best_protocol_fixed_msgs
 # latest_emcomm_fix_eval_BOS_add_s_t5_winoground_99th_better_temp_tf_more_capacity
